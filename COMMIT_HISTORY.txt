@@ -1,0 +1,86 @@
+========================================
+提交: eb6d334
+日期: 2026-07-08 15:30:40 +0800
+
+7.8 新增可一键部署的exe文件
+
+perf: 架构优化 — 缩略图Blob分离、Rust扫描、无限滚动、原生拖拽
+性能优化：
+- 封面图从 base64 字符串改为 Blob 独立存储（thumbnails 表），getAll() 不再加载图片数据
+- 文件扫描从前端逐文件 IPC 改为 Rust 端 walkdir 一次遍历，单次调用返回全部结果
+- 资产网格改为 QInfiniteScroll 分页渲染（首屏60张，滚动加载）
+- deep watch 改为 computed，排序合并为单次 sort
+新功能：
+- 标签涂抹模式（画笔图标，点击资产刷标签，Esc 退出）
+- 封面支持 Ctrl+V 粘贴 + Tauri 原生文件拖拽（绕过 WebView2 限制）
+- Ctrl+Shift+Z 重做支持
+- 搜索防抖 200ms
+- 常用素材网站快捷链接（设置中可自定义）
+- Unity 商店搜索跳转（自动去除版本号后缀）
+- 文件移动后按文件名+大小匹配继承元数据
+- 类型安全的 IPC 命令封装（tauriCommands.ts）
+重构：
+- C# 桥接脚本提取为独立文件，Rust 用 include_str! 编译期嵌入
+- 排序策略接口新增 compare 方法
+- 删除 Quasar 脚手架残留文件（IndexPage、SecondPage、MainLayout、EssentialLink）
+
+========================================
+提交: 08ad06d
+日期: 2026-07-06 18:11:04 +0800
+
+2026.7.6   0.2版本上线
+
+feat: 资产橱窗重写 + Unity预览图自动生成系统
+
+- 修复pathname末尾\n00 padding导致资产分类全部为Other
+- 修复CSS Grid压缩卡片，改用flex-wrap布局
+- 新增Unity桥接脚本自动渲染prefab截图（自定义相机+双光源+bounds自适应）
+- 新增prefabs.json索引机制，替代逐个路径查找
+- 新增_trigger文件自动触发截图 + 手动菜单备用
+- 重写橱窗前端，只展示Prefab/Texture/Script
+- 渲染背景深灰改浅灰（深色模型对比度太差）
+- 图片加载改为Rust端批量读base64，绕过asset protocol 403
+- Unity项目检测改为大小写不敏感
+- 性能优化：lazy loading + 仅已存在截图设src
+
+========================================
+提交: c373934
+日期: 2026-07-03 21:03:06 +0800
+
+7.3架构优化
+
+refactor(arch): 完成架构重构与代码清理
+
+- 拆分 AssetDetailDrawer (1199→572行), 提取 ShowcaseSection 和 UnityPreviewsSection
+- 提取 ASSET_TYPE_ICONS/TYPE_I18N_MAP 到 constants/index.ts
+- 修复 tagStore/assetStore 的 exactOptionalPropertyTypes 类型错误 (Object.assign)
+- 修复 scanner.ts 硬编码路径分隔符, 改用 @tauri-apps/api/path join
+- 创建 utils/index.ts 和 constants/index.ts barrel exports
+- 删除 example-store.ts 死代码
+- 9个文件完成依赖反转 (DI barrel import)
+- vue-tsc --noEmit 零错误
+
+========================================
+提交: 16ff7c4
+日期: 2026-07-03 19:42:11 +0800
+
+chore: rename to UnityPackHub, add AGPL-3.0 license
+
+- Rename project from UnityAssetShelf to UnityPackHub across all configs
+- Add AGPL-3.0 license file
+- Add CHANGELOG.md
+- Rewrite README.md with proper project description
+- Upgrade CODING_STANDARDS.md (9 → 17 sections)
+- Update package.json, tauri.conf.json, quasar.config.ts, i18n, database
+
+
+========================================
+提交: da3509b
+日期: 2026-07-03 19:26:28 +0800
+
+feat: UnityAssetShelf 初始提交
+
+Unity 资产管理桌面应用，基于 Vue 3 + TypeScript + Quasar + Tauri。
+包含资产扫描、标签管理、分组、收藏、排序、撤销等核心功能。
+
+

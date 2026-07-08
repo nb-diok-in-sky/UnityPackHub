@@ -1,0 +1,78 @@
+:root {
+  --color-background: #F5F5F7;
+  --color-surface: #FFFFFF;
+  --color-text: #1D1D1F;
+  --color-secondary: #86868B;
+  --color-border: #E5E5EA;
+  --color-divider: #F2F2F7;
+  --glass-background: rgba(255, 255, 255, 0.72);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.2);
+  --hover-overlay: rgba(0, 0, 0, 0.04);
+  --hover-overlay-subtle: rgba(0, 0, 0, 0.03);
+  --accent-soft: rgba(0, 122, 255, 0.06);
+  --accent-glow: rgba(0, 122, 255, 0.15);
+  --cover-remove-bg: rgba(0, 0, 0, 0.5);
+  --overlay-bg: rgba(0, 0, 0, 0.2);
+  --placeholder-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.dark-theme {
+  --color-background: #1C1C1E;
+  --color-surface: #2C2C2E;
+  --color-text: #F5F5F7;
+  --color-secondary: #98989D;
+  --color-border: #38383A;
+  --color-divider: #38383A;
+  --glass-background: rgba(44, 44, 46, 0.72);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-dialog: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --hover-overlay: rgba(255, 255, 255, 0.06);
+  --hover-overlay-subtle: rgba(255, 255, 255, 0.04);
+  --accent-soft: rgba(0, 122, 255, 0.15);
+  --accent-glow: rgba(0, 122, 255, 0.25);
+  --cover-remove-bg: rgba(0, 0, 0, 0.7);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --placeholder-gradient: linear-gradient(135deg, #4a4e69 0%, #22223b 100%);
+
+  .q-card {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .q-item {
+    color: var(--color-text);
+  }
+
+  .q-field__control {
+    color: var(--color-text);
+  }
+
+  .q-field__native {
+    color: var(--color-text);
+  }
+
+  .q-btn-toggle {
+    border: 1px solid var(--color-border);
+  }
+
+  .text-h6, .text-subtitle2 {
+    color: var(--color-text);
+  }
+
+  .q-separator {
+    background: var(--color-border);
+  }
+
+  .q-toggle__inner {
+    color: var(--color-secondary);
+  }
+
+  .q-list {
+    background: var(--color-surface);
+  }
+}

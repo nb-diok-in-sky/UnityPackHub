@@ -1,0 +1,73 @@
+// Apple Design Language — Color System
+$apple-blue:      #007AFF;
+$apple-green:     #34C759;
+$apple-orange:    #FF9500;
+$apple-red:       #FF3B30;
+$apple-purple:    #AF52DE;
+$apple-pink:      #FF2D55;
+$apple-teal:      #5AC8FA;
+$apple-yellow:    #FFCC00;
+
+// Dynamic colors — resolved at runtime via CSS custom properties
+$color-background:  var(--color-background);
+$color-surface:     var(--color-surface);
+$color-text:        var(--color-text);
+$color-secondary:   var(--color-secondary);
+$color-border:      var(--color-border);
+$color-divider:     var(--color-divider);
+
+// Typography
+$font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+$font-size-title:     20px;
+$font-size-card-name: 14px;
+$font-size-notes:     12px;
+$font-size-tag:       11px;
+$font-size-status:    12px;
+
+$font-weight-title:     600;
+$font-weight-card-name: 600;
+$font-weight-notes:     400;
+$font-weight-tag:       500;
+
+// Spacing
+$spacing-unit: 8px;
+$spacing-card-gap: 16px;
+$spacing-padding: 20px;
+$spacing-section: 24px;
+
+// Border Radius
+$radius-card:   16px;
+$radius-button: 10px;
+$radius-input:  8px;
+$radius-dialog: 14px;
+$radius-tag:    20px;
+
+// Shadows — dynamic
+$shadow-card:       var(--shadow-card);
+$shadow-card-hover: var(--shadow-card-hover);
+$shadow-dropdown:   var(--shadow-dropdown);
+$shadow-dialog:     var(--shadow-dialog);
+
+// Glassmorphism — dynamic
+$glass-background: var(--glass-background);
+$glass-blur:       blur(20px) saturate(180%);
+
+// Transitions
+$transition-default: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+$transition-fast:    all 0.15s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+$transition-slow:    all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+
+// Card Sizes
+$card-width-sm: 160px;
+$card-width-md: 220px;
+$card-width-lg: 300px;
+
+// Sidebar
+$sidebar-width: 220px;
+
+// Top bar
+$topbar-height: 52px;
+
+// Status bar
+$statusbar-height: 32px;
