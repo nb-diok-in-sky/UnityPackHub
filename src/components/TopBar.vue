@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import type { CardSize, SortKey } from '../types/asset'
 import { useAssetStore } from '../stores/assetStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useI18n } from '../services/i18n'
+import { startModelPreviewGeneration, type ModelPreviewProgress } from '../services/modelPreviewService'
+import { commands } from '../services/tauriCommands'
 
 const emit = defineEmits<{
   'open-settings': []
@@ -14,6 +17,17 @@ const { t } = useI18n()
 
 const SORT_KEYS: SortKey[] = ['name', 'createdAt', 'fileSize', 'lastUsedAt']
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+const isGeneratingModelCovers = ref(false)
+const modelCoverProgress = ref<ModelPreviewProgress | null>(null)
+const showModelCoverDialog = ref(false)
+const modelCoverLimit = ref(20)
+const missingModelCoverCount = computed(() =>
+  assetStore.assets.filter((asset) => asset.assetKind === 'model' && !asset.thumbnailPath).length
+)
+
+watch(missingModelCoverCount, (count) => {
+  modelCoverLimit.value = Math.min(Math.max(1, modelCoverLimit.value), Math.max(1, count))
+}, { immediate: true })
 
 const SORT_LABEL_KEYS = {
   name: 'sortName',
@@ -50,6 +64,35 @@ async function handleCardSize(size: CardSize): Promise<void> {
 async function handleRefresh(): Promise<void> {
   await assetStore.scan()
 }
+
+async function handleGenerateModelCovers(): Promise<void> {
+  if (isGeneratingModelCovers.value) return
+  let editorPath = settingsStore.settings.unityEditorPath
+  if (!editorPath) {
+    const editors = await commands.discoverUnityEditors()
+    if (editors.length === 0) {
+      console.error('[ModelPreview] Unity Editor not found')
+      return
+    }
+    editorPath = editors[0] ?? ''
+    if (!editorPath) return
+    await settingsStore.setUnityEditorPath(editorPath)
+  }
+  isGeneratingModelCovers.value = true
+  try {
+    await startModelPreviewGeneration(editorPath, assetStore.assets, modelCoverLimit.value, (progress) => {
+      modelCoverProgress.value = progress
+    })
+  } finally {
+    isGeneratingModelCovers.value = false
+  }
+}
+
+function openModelCoverDialog(): void {
+  if (missingModelCoverCount.value === 0) return
+  modelCoverLimit.value = Math.min(20, missingModelCoverCount.value)
+  showModelCoverDialog.value = true
+}
 </script>
 
 <template>
@@ -83,6 +126,21 @@ async function handleRefresh(): Promise<void> {
     </div>
 
     <div class="topbar__actions">
+      <span v-if="modelCoverProgress && isGeneratingModelCovers" class="topbar__model-progress">
+        {{ modelCoverProgress.completed }}/{{ modelCoverProgress.total }}
+      </span>
+
+      <q-btn
+        v-if="assetStore.activeAssetKind === 'model'"
+        flat dense round
+        icon="add_photo_alternate"
+        size="sm"
+        color="grey-7"
+        :loading="isGeneratingModelCovers"
+        :title="t.generateModelCovers"
+        @click="openModelCoverDialog"
+      />
+
       <div class="topbar__size-group">
         <q-btn
           v-for="opt in SIZE_OPTIONS"
@@ -139,6 +197,46 @@ async function handleRefresh(): Promise<void> {
         @click="emit('open-settings')"
       />
     </div>
+
+    <q-dialog v-model="showModelCoverDialog">
+      <q-card class="model-cover-dialog">
+        <q-card-section>
+          <div class="text-h6">{{ t.modelCoverBatchTitle }}</div>
+          <div class="text-caption text-grey-7">
+            {{ t.modelCoverMissing }}：{{ missingModelCoverCount }}
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <div class="model-cover-dialog__value">{{ modelCoverLimit }}</div>
+          <q-slider
+            v-model="modelCoverLimit"
+            :min="1"
+            :max="Math.max(1, missingModelCoverCount)"
+            :step="1"
+            label
+            color="primary"
+          />
+          <q-input
+            v-model.number="modelCoverLimit"
+            type="number"
+            dense outlined
+            :min="1"
+            :max="Math.max(1, missingModelCoverCount)"
+            :label="t.modelCoverBatchCount"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat :label="t.cancel" color="grey" v-close-popup />
+          <q-btn
+            unelevated
+            :label="t.startGeneration"
+            color="primary"
+            v-close-popup
+            @click="handleGenerateModelCovers"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -198,11 +296,31 @@ async function handleRefresh(): Promise<void> {
   -webkit-app-region: no-drag;
 }
 
+.topbar__model-progress {
+  min-width: 48px;
+  font-size: 11px;
+  color: $color-secondary;
+  text-align: right;
+}
+
 .topbar__size-group {
   display: flex;
   align-items: center;
   background: var(--hover-overlay);
   border-radius: 8px;
   padding: 2px;
+}
+
+.model-cover-dialog {
+  width: 420px;
+  border-radius: $radius-dialog;
+
+  &__value {
+    margin-bottom: 4px;
+    color: $apple-blue;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+  }
 }
 </style>

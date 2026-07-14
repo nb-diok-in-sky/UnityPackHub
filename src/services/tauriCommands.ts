@@ -65,6 +65,9 @@ interface PackageInfo {
   file_count: number
 }
 
+interface ModelPreviewRequest { assetId: string; sourcePath: string }
+interface ModelPreviewResult { assetId: string; imagePath: string; success: boolean; error: string }
+
 export const commands = {
   scanDirectories: (dirs: string[]) =>
     invoke<ScannedFile[]>('scan_directories', { dirs }),
@@ -121,6 +124,14 @@ export const commands = {
 
   importWithBridge: (packagePath: string, projectPath: string) =>
     invoke<boolean>('import_with_bridge', { packagePath, projectPath }),
+
+  discoverUnityEditors: () => invoke<string[]>('discover_unity_editors'),
+  startModelPreviewJob: (unityEditorPath: string, models: ModelPreviewRequest[]) =>
+    invoke<number>('start_model_preview_job', { unityEditorPath, models }),
+  collectModelPreviewResults: () =>
+    invoke<ModelPreviewResult[]>('collect_model_preview_results'),
+  readModelPreviewImage: (path: string) =>
+    invoke<string>('read_model_preview_image', { path }),
 }
 
 export type {
@@ -133,4 +144,6 @@ export type {
   PackageInfo,
   RelatedFile,
   AssetMetadata,
+  ModelPreviewRequest,
+  ModelPreviewResult,
 }

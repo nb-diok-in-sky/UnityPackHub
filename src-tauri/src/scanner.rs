@@ -117,22 +117,31 @@ pub fn scan_directories(dirs: Vec<String>) -> Result<Vec<ScannedFile>, String> {
     let mut results = Vec::new();
 
     for dir in &dirs {
-        for entry in WalkDir::new(dir).follow_links(true).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(dir)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
             if !path.is_file() {
                 continue;
             }
-            let ext = path
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("");
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
             let (asset_kind, display_name) = if ext.eq_ignore_ascii_case("unitypackage") {
-                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
                 let display = strip_known_suffix(&file_name, &["unitypackage"]);
                 ("package".to_string(), display)
             } else if MODEL_EXTENSIONS.iter().any(|e| ext.eq_ignore_ascii_case(e)) {
-                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
                 let display = strip_known_suffix(&file_name, MODEL_EXTENSIONS);
                 ("model".to_string(), display)
             } else {
@@ -168,15 +177,13 @@ pub fn scan_model_related_files(model_path: String) -> Result<Vec<RelatedFile>, 
         return Err("Parent directory does not exist".into());
     }
 
-    let model_file_name = model
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let model_file_name = model.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     let mut files = Vec::new();
     let mut seen = HashMap::new();
 
-    let read_dir = std::fs::read_dir(parent).map_err(|e| format!("Failed to read directory: {}", e))?;
+    let read_dir =
+        std::fs::read_dir(parent).map_err(|e| format!("Failed to read directory: {}", e))?;
 
     for entry in read_dir.filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -233,11 +240,14 @@ pub fn scan_model_related_files(model_path: String) -> Result<Vec<RelatedFile>, 
 }
 
 #[tauri::command]
-pub fn read_asset_metadata(json_path: String, asset_path: String) -> Result<Option<AssetMetadata>, String> {
+pub fn read_asset_metadata(
+    json_path: String,
+    asset_path: String,
+) -> Result<Option<AssetMetadata>, String> {
     let text = std::fs::read_to_string(&json_path)
         .map_err(|e| format!("Failed to read metadata json: {}", e))?;
-    let entries: Vec<RawMetadataEntry> = serde_json::from_str(&text)
-        .map_err(|e| format!("Failed to parse metadata json: {}", e))?;
+    let entries: Vec<RawMetadataEntry> =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse metadata json: {}", e))?;
 
     let target_path = normalize_path_text(&asset_path);
     let target_name = filename_of(&asset_path).to_lowercase();
@@ -259,9 +269,7 @@ pub fn read_asset_metadata(json_path: String, asset_path: String) -> Result<Opti
     Ok(matched.map(|entry| {
         let path = entry.path.clone().unwrap_or_else(|| asset_path.clone());
         AssetMetadata {
-            original_name: entry
-                .original_name
-                .unwrap_or_else(|| filename_of(&path)),
+            original_name: entry.original_name.unwrap_or_else(|| filename_of(&path)),
             inferred_object: entry.inferred_object,
             format: entry.format,
             bounds_text: bounds_to_text(entry.bounds_size),

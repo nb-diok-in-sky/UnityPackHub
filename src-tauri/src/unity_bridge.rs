@@ -1,8 +1,40 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const BRIDGE_SCRIPT: &str = include_str!("bridge/UnityPackHubBridge.cs");
+const MODEL_PREVIEW_SCRIPT: &str = include_str!("bridge/ModelPreviewBatch.cs");
+
+#[derive(Debug, Deserialize)]
+pub struct ModelPreviewRequest {
+    #[serde(rename = "assetId")]
+    pub asset_id: String,
+    #[serde(rename = "sourcePath")]
+    pub source_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelPreviewJob {
+    #[serde(rename = "assetId")]
+    pub asset_id: String,
+    #[serde(rename = "sourcePath")]
+    pub source_path: String,
+    #[serde(rename = "outputPath")]
+    pub output_path: String,
+    #[serde(rename = "resultPath")]
+    pub result_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelPreviewResult {
+    #[serde(rename = "assetId")]
+    pub asset_id: String,
+    #[serde(rename = "imagePath")]
+    pub image_path: String,
+    pub success: bool,
+    pub error: String,
+}
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PreviewEntry {
@@ -29,6 +61,180 @@ fn get_preview_root() -> PathBuf {
         .join("previews")
 }
 
+fn get_model_picture_root() -> PathBuf {
+    let appdata = std::env::var("APPDATA").unwrap_or_default();
+    PathBuf::from(appdata)
+        .join("com.unitypackhub.app")
+        .join("Model picture")
+}
+
+fn short_path_hash(path: &str) -> String {
+    let mut hash: u64 = 1469598103934665603;
+    for byte in path.replace('\\', "/").to_lowercase().bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1099511628211);
+    }
+    format!("{:08x}", hash as u32)
+}
+
+fn safe_stem(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("model")
+        .chars()
+        .map(|c| if "<>:\"/\\|?*".contains(c) { '_' } else { c })
+        .collect::<String>()
+        .trim_matches(&[' ', '.'][..])
+        .chars()
+        .take(80)
+        .collect()
+}
+
+#[tauri::command]
+pub fn discover_unity_editors() -> Result<Vec<String>, String> {
+    let mut editors = Vec::new();
+    #[cfg(target_os = "windows")]
+    {
+        let root = Path::new(r"C:\Program Files\Unity\Hub\Editor");
+        if let Ok(versions) = fs::read_dir(root) {
+            for version in versions.flatten() {
+                let editor = version.path().join("Editor").join("Unity.exe");
+                if editor.exists() {
+                    editors.push(editor.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    editors.sort();
+    editors.reverse();
+    Ok(editors)
+}
+
+#[tauri::command]
+pub fn start_model_preview_job(
+    unity_editor_path: String,
+    models: Vec<ModelPreviewRequest>,
+) -> Result<u32, String> {
+    let editor = Path::new(&unity_editor_path);
+    if !editor.exists() {
+        return Err("Unity Editor executable does not exist".into());
+    }
+    let root = get_model_picture_root();
+    let project = root.join("PreviewProject");
+    let editor_dir = project.join("Assets").join("Editor");
+    let images = root.join("images");
+    let results = root.join("results");
+    fs::create_dir_all(&editor_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&images).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&results).map_err(|e| e.to_string())?;
+    fs::write(
+        editor_dir.join("ModelPreviewBatch.cs"),
+        MODEL_PREVIEW_SCRIPT,
+    )
+    .map_err(|e| e.to_string())?;
+    fs::write(
+        project.join("ProjectSettings").join("ProjectVersion.txt"),
+        "m_EditorVersion: 2022.3.0f1\n",
+    )
+    .or_else(|_| {
+        fs::create_dir_all(project.join("ProjectSettings"))?;
+        fs::write(
+            project.join("ProjectSettings").join("ProjectVersion.txt"),
+            "m_EditorVersion: 2022.3.0f1\n",
+        )
+    })
+    .map_err(|e| e.to_string())?;
+
+    let jobs: Vec<ModelPreviewJob> = models
+        .into_iter()
+        .map(|model| {
+            let source = Path::new(&model.source_path);
+            let format = source
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("model")
+                .to_lowercase();
+            let file_name = format!(
+                "Model_{}_{}_{}.png",
+                format,
+                safe_stem(source),
+                short_path_hash(&model.source_path)
+            );
+            ModelPreviewJob {
+                asset_id: model.asset_id.clone(),
+                source_path: model.source_path,
+                output_path: images.join(file_name).to_string_lossy().to_string(),
+                result_path: results
+                    .join(format!("{}.done.json", model.asset_id))
+                    .to_string_lossy()
+                    .to_string(),
+            }
+        })
+        .collect();
+    let count = jobs.len() as u32;
+    let jobs_path = root.join("jobs.json");
+    fs::write(
+        &jobs_path,
+        serde_json::to_string_pretty(&serde_json::json!({ "jobs": jobs }))
+            .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        Command::new(editor)
+            .args([
+                "-batchmode",
+                "-nographics",
+                "-quit",
+                "-projectPath",
+                project.to_str().unwrap_or_default(),
+                "-executeMethod",
+                "ModelPreviewBatch.Run",
+                "-uphJobs",
+                jobs_path.to_str().unwrap_or_default(),
+                "-logFile",
+                root.join("unity-render.log").to_str().unwrap_or_default(),
+            ])
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+pub fn collect_model_preview_results() -> Result<Vec<ModelPreviewResult>, String> {
+    let results_dir = get_model_picture_root().join("results");
+    if !results_dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut results = Vec::new();
+    for entry in fs::read_dir(&results_dir)
+        .map_err(|e| e.to_string())?
+        .flatten()
+    {
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        if let Ok(text) = fs::read_to_string(&path) {
+            if let Ok(result) = serde_json::from_str(&text) {
+                results.push(result);
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+pub fn read_model_preview_image(path: String) -> Result<String, String> {
+    let data = fs::read(path).map_err(|e| e.to_string())?;
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data);
+    Ok(format!("data:image/png;base64,{}", encoded))
+}
+
 #[derive(Debug, Serialize)]
 pub struct PreviewDirInfo {
     pub path: String,
@@ -36,7 +242,10 @@ pub struct PreviewDirInfo {
 }
 
 #[tauri::command]
-pub fn ensure_preview_dir(package_name: String, prefab_names: Vec<String>) -> Result<PreviewDirInfo, String> {
+pub fn ensure_preview_dir(
+    package_name: String,
+    prefab_names: Vec<String>,
+) -> Result<PreviewDirInfo, String> {
     let dir = get_preview_root().join(&package_name);
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create preview dir: {}", e))?;
 
@@ -52,9 +261,9 @@ pub fn ensure_preview_dir(package_name: String, prefab_names: Vec<String>) -> Re
             let _ = fs::write(&prefabs_file, json);
         }
 
-        let has_missing = prefab_names.iter().any(|name| {
-            !dir.join(format!("{}.png", name)).exists()
-        });
+        let has_missing = prefab_names
+            .iter()
+            .any(|name| !dir.join(format!("{}.png", name)).exists());
         if has_missing {
             let _ = fs::write(dir.join("_trigger"), "");
         }
@@ -90,7 +299,10 @@ pub fn clear_all_previews() -> Result<u32, String> {
         if path.is_dir() {
             if let Ok(files) = fs::read_dir(&path) {
                 for f in files.flatten() {
-                    if f.path().extension().map_or(false, |e| e == "png" || e == "json") {
+                    if f.path()
+                        .extension()
+                        .map_or(false, |e| e == "png" || e == "json")
+                    {
                         let _ = fs::remove_file(f.path());
                         count += 1;
                     }
@@ -181,8 +393,8 @@ pub fn get_package_previews(package_name: String) -> Result<Option<PackagePrevie
         return Ok(None);
     }
 
-    let content =
-        fs::read_to_string(&manifest_path).map_err(|e| format!("Failed to read manifest: {}", e))?;
+    let content = fs::read_to_string(&manifest_path)
+        .map_err(|e| format!("Failed to read manifest: {}", e))?;
 
     let parsed: Vec<serde_json::Value> =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse manifest: {}", e))?;
@@ -195,7 +407,11 @@ pub fn get_package_previews(package_name: String) -> Result<Option<PackagePrevie
                 name: v.get("name")?.as_str()?.to_string(),
                 asset_type: v.get("type")?.as_str()?.to_string(),
                 preview: v.get("preview")?.as_str()?.to_string(),
-                render_type: v.get("renderType")?.as_str().unwrap_or("thumbnail").to_string(),
+                render_type: v
+                    .get("renderType")?
+                    .as_str()
+                    .unwrap_or("thumbnail")
+                    .to_string(),
             })
         })
         .collect();
@@ -216,7 +432,9 @@ pub fn read_preview_image(preview_dir: String, filename: String) -> Result<Strin
 }
 
 #[tauri::command]
-pub fn read_all_previews(preview_dir: String) -> Result<std::collections::HashMap<String, String>, String> {
+pub fn read_all_previews(
+    preview_dir: String,
+) -> Result<std::collections::HashMap<String, String>, String> {
     let dir = Path::new(&preview_dir);
     if !dir.exists() {
         return Ok(std::collections::HashMap::new());
@@ -228,7 +446,10 @@ pub fn read_all_previews(preview_dir: String) -> Result<std::collections::HashMa
             if path.extension().map_or(false, |e| e == "png") {
                 if let Some(name) = entry.file_name().to_str() {
                     if let Ok(data) = fs::read(&path) {
-                        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+                        let b64 = base64::Engine::encode(
+                            &base64::engine::general_purpose::STANDARD,
+                            &data,
+                        );
                         result.insert(name.to_string(), format!("data:image/png;base64,{}", b64));
                     }
                 }
@@ -239,10 +460,7 @@ pub fn read_all_previews(preview_dir: String) -> Result<std::collections::HashMa
 }
 
 #[tauri::command]
-pub fn import_with_bridge(
-    package_path: String,
-    project_path: String,
-) -> Result<bool, String> {
+pub fn import_with_bridge(package_path: String, project_path: String) -> Result<bool, String> {
     let newly_injected = ensure_bridge_script(project_path)?;
 
     if newly_injected {

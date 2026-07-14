@@ -80,6 +80,11 @@ export const useSettingsStore = defineStore('settings', () => {
     await save()
   }
 
+  async function setUnityEditorPath(path: string): Promise<void> {
+    settings.value.unityEditorPath = path
+    await save()
+  }
+
   async function addQuickLink(link: QuickLink): Promise<void> {
     settings.value.quickLinks.push(link)
     await save()
@@ -103,6 +108,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setSortOrder,
     setAppLocale,
     setTheme,
+    setUnityEditorPath,
     addQuickLink,
     removeQuickLink,
   }

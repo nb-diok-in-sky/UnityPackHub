@@ -22,6 +22,8 @@ const { t } = useI18n()
 const showAddLink = ref(false)
 const newLinkName = ref('')
 const newLinkUrl = ref('')
+const detectedUnityEditors = ref<string[]>([])
+const isDetectingUnity = ref(false)
 
 async function addDirectory(): Promise<void> {
   const selected = await openDialog({ directory: true, multiple: false })
@@ -44,6 +46,30 @@ async function addQuickLink(): Promise<void> {
   newLinkName.value = ''
   newLinkUrl.value = ''
   showAddLink.value = false
+}
+
+async function detectUnityEditors(): Promise<void> {
+  isDetectingUnity.value = true
+  try {
+    const { commands } = await import('../services/tauriCommands')
+    detectedUnityEditors.value = await commands.discoverUnityEditors()
+    if (!settingsStore.settings.unityEditorPath && detectedUnityEditors.value.length === 1) {
+      await settingsStore.setUnityEditorPath(detectedUnityEditors.value[0] ?? '')
+    }
+  } finally {
+    isDetectingUnity.value = false
+  }
+}
+
+async function chooseUnityEditor(): Promise<void> {
+  const selected = await openDialog({
+    directory: false,
+    multiple: false,
+    filters: [{ name: 'Unity Editor', extensions: ['exe'] }],
+  })
+  if (selected && typeof selected === 'string') {
+    await settingsStore.setUnityEditorPath(selected)
+  }
 }
 </script>
 
@@ -121,6 +147,25 @@ async function addQuickLink(): Promise<void> {
           class="q-mt-sm"
           @click="addDirectory"
         />
+
+        <q-separator class="q-my-lg" />
+
+        <div class="text-subtitle2 q-mb-sm">{{ t.unityEditorPath }}</div>
+        <q-input
+          :model-value="settingsStore.settings.unityEditorPath"
+          dense outlined readonly
+          :placeholder="t.unityPathHint"
+          class="q-mb-sm"
+        />
+        <div class="row q-gutter-sm">
+          <q-btn outline dense :label="t.detectUnityEditors" icon="search" color="primary" :loading="isDetectingUnity" @click="detectUnityEditors" />
+          <q-btn outline dense :label="t.chooseUnityEditor" icon="folder_open" color="primary" @click="chooseUnityEditor" />
+        </div>
+        <q-list v-if="detectedUnityEditors.length > 1" dense bordered class="q-mt-sm">
+          <q-item v-for="editor in detectedUnityEditors" :key="editor" clickable @click="settingsStore.setUnityEditorPath(editor)">
+            <q-item-section class="settings-dir__path">{{ editor }}</q-item-section>
+          </q-item>
+        </q-list>
 
         <q-separator class="q-my-lg" />
 

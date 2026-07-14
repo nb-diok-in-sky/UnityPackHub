@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Asset, SortKey, SortOrder } from '../types/asset'
+import type { Asset, AssetKind, SortKey, SortOrder } from '../types/asset'
 import type { ISortStrategy } from '../types/strategies'
 import { assetRepository } from '../services/repositories'
 import { scanService } from '../services/scanner'
@@ -26,15 +26,20 @@ export const useAssetStore = defineStore('assets', () => {
   const isScanning = ref(false)
   const selectedIds = ref<Set<string>>(new Set())
   const showFavoritesOnly = ref(false)
+  const activeAssetKind = ref<AssetKind>('package')
 
   const settingsStore = useSettingsStore()
   const tagStore = useTagStore()
   const groupStore = useGroupStore()
 
+  const kindFiltered = computed<Asset[]>(() =>
+    assets.value.filter((asset) => (asset.assetKind || 'package') === activeAssetKind.value)
+  )
+
   const favoriteFiltered = computed<Asset[]>(() =>
     showFavoritesOnly.value
-      ? assets.value.filter((a) => a.isFavorite)
-      : assets.value
+      ? kindFiltered.value.filter((a) => a.isFavorite)
+      : kindFiltered.value
   )
 
   const tagFiltered = computed<Asset[]>(() =>
@@ -81,6 +86,12 @@ export const useAssetStore = defineStore('assets', () => {
   })
 
   const totalCount = computed(() => assets.value.length)
+  const packageCount = computed(() =>
+    assets.value.filter((asset) => (asset.assetKind || 'package') === 'package').length
+  )
+  const modelCount = computed(() =>
+    assets.value.filter((asset) => asset.assetKind === 'model').length
+  )
   const filteredCount = computed(() => filteredAssets.value.length)
   const totalSize = computed(() =>
     assets.value.reduce((sum, a) => sum + a.fileSize, 0)
@@ -133,6 +144,11 @@ export const useAssetStore = defineStore('assets', () => {
 
   function setFavoritesOnly(value: boolean): void {
     showFavoritesOnly.value = value
+  }
+
+  function setActiveAssetKind(kind: AssetKind): void {
+    activeAssetKind.value = kind
+    clearSelection()
   }
 
   const paintingTagId = ref<string | null>(null)
@@ -197,8 +213,11 @@ export const useAssetStore = defineStore('assets', () => {
     isScanning,
     selectedIds,
     showFavoritesOnly,
+    activeAssetKind,
     filteredAssets,
     totalCount,
+    packageCount,
+    modelCount,
     filteredCount,
     totalSize,
     favoriteCount,
@@ -210,6 +229,7 @@ export const useAssetStore = defineStore('assets', () => {
     deleteAsset,
     setSearch,
     setFavoritesOnly,
+    setActiveAssetKind,
     paintingTagId,
     startTagPaint,
     stopTagPaint,
