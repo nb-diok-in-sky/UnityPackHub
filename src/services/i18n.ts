@@ -108,6 +108,8 @@ const translations = {
     assetTypePlugin: '插件',
     assetTypeUI: '界面',
     assetTypeOther: '其他',
+    modelShowcase: '模型橱窗',
+    noRelatedFiles: '同目录下没有找到关联贴图或材质',
     itemCount: '{count} 个资产',
   },
   'en-US': {
@@ -215,6 +217,8 @@ const translations = {
     assetTypePlugin: 'Plugin',
     assetTypeUI: 'UI',
     assetTypeOther: 'Other',
+    modelShowcase: 'Model Showcase',
+    noRelatedFiles: 'No related textures or materials found in same directory',
     itemCount: '{count} assets',
   },
 } as const

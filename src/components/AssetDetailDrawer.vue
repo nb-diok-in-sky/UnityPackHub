@@ -10,6 +10,7 @@ import { formatBytes } from '../utils/formatBytes'
 import { readFile } from '@tauri-apps/plugin-fs'
 import TagPill from './TagPill.vue'
 import ShowcaseSection from './detail/ShowcaseSection.vue'
+import ModelShowcaseSection from './detail/ModelShowcaseSection.vue'
 import UnityPreviewsSection from './detail/UnityPreviewsSection.vue'
 
 const props = defineProps<{
@@ -43,7 +44,11 @@ const isImporting = ref(false)
 const importStatus = ref('')
 
 const showcaseRef = ref<InstanceType<typeof ShowcaseSection> | null>(null)
+const modelShowcaseRef = ref<InstanceType<typeof ModelShowcaseSection> | null>(null)
 const previewsRef = ref<InstanceType<typeof UnityPreviewsSection> | null>(null)
+
+const isPackage = computed(() => !props.asset || props.asset.assetKind !== 'model')
+const isModel = computed(() => props.asset?.assetKind === 'model')
 
 const assetTags = computed(() => {
   if (!props.asset) return []
@@ -74,6 +79,7 @@ watch(() => props.asset, () => {
 watch(() => props.asset?.id, () => {
   importStatus.value = ''
   showcaseRef.value?.reset()
+  modelShowcaseRef.value?.reset()
   previewsRef.value?.reset()
   if (props.asset) {
     previewsRef.value?.loadPreviews()
@@ -89,7 +95,7 @@ onMounted(async () => {
   unlistenDragDrop = await getCurrentWebview().onDragDropEvent(async (event) => {
     if (event.payload.type === 'enter' || event.payload.type === 'over') {
       if (props.asset) isDragOver.value = true
-    } else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
+    } else if (event.payload.type === 'leave') {
       isDragOver.value = false
     } else if (event.payload.type === 'drop') {
       isDragOver.value = false
@@ -456,11 +462,14 @@ async function handleSearchUnityStore(): Promise<void> {
             </div>
           </div>
 
-          <!-- Asset Showcase -->
-          <ShowcaseSection ref="showcaseRef" :asset="asset" />
+          <!-- Package Asset Showcase -->
+          <ShowcaseSection v-if="isPackage" ref="showcaseRef" :asset="asset" />
 
-          <!-- Unity Rendered Previews -->
-          <UnityPreviewsSection ref="previewsRef" :asset="asset" />
+          <!-- Model Showcase -->
+          <ModelShowcaseSection v-if="isModel" ref="modelShowcaseRef" :asset="asset" />
+
+          <!-- Unity Rendered Previews (package only) -->
+          <UnityPreviewsSection v-if="isPackage" ref="previewsRef" :asset="asset" />
         </div>
       </div>
     </div>

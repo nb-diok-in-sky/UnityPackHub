@@ -53,6 +53,21 @@ class AppDatabase extends Dexie {
       showcaseCache: 'filePath',
       thumbnails: 'id',
     })
+
+    this.version(5).stores({
+      assets: 'id, name, fileName, filePath, fileSize, isFavorite, assetKind, createdAt, updatedAt, lastUsedAt, *tagIds',
+      tags: 'id, label',
+      settings: 'id',
+      groups: 'id, name, order',
+      showcaseCache: 'filePath',
+      thumbnails: 'id',
+    }).upgrade(tx => {
+      return tx.table('assets').toCollection().modify(asset => {
+        if (!asset.assetKind) {
+          asset.assetKind = 'package'
+        }
+      })
+    })
   }
 }
 

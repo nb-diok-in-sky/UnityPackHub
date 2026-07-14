@@ -176,7 +176,8 @@ export const useAssetStore = defineStore('assets', () => {
     const start = Math.min(currentIdx, lastIdx)
     const end = Math.max(currentIdx, lastIdx)
     for (let i = start; i <= end; i++) {
-      selectedIds.value.add(list[i].id)
+      const asset = list[i]
+      if (asset) selectedIds.value.add(asset.id)
     }
     lastSelectedId = id
     selectedIds.value = new Set(selectedIds.value)

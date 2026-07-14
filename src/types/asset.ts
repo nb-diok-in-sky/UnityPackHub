@@ -1,3 +1,5 @@
+export type AssetKind = 'package' | 'model'
+
 export interface Asset {
   id: string
   name: string
@@ -8,6 +10,7 @@ export interface Asset {
   notes: string
   tagIds: string[]
   isFavorite: boolean
+  assetKind: AssetKind
   createdAt: number
   updatedAt: number
   lastUsedAt: number

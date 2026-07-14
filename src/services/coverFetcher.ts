@@ -1,12 +1,12 @@
-import { invoke } from '@tauri-apps/api/core'
 import { stat } from '@tauri-apps/plugin-fs'
 import { db } from './database'
+import { commands } from './tauriCommands'
 
 const SHOWCASE_CACHE_VERSION = 5
 
 export async function fetchCoverFromPackage(packagePath: string): Promise<string | null> {
   try {
-    const preview = await invoke<string | null>('extract_package_preview', { path: packagePath })
+    const preview = await commands.extractPackagePreview(packagePath)
     return preview
   } catch {
     return null
@@ -21,7 +21,7 @@ export interface PackageContents {
 
 export async function parsePackageContents(packagePath: string): Promise<PackageContents | null> {
   try {
-    return await invoke<PackageContents>('parse_unity_package', { path: packagePath })
+    return await commands.parseUnityPackage(packagePath)
   } catch {
     return null
   }
@@ -66,7 +66,7 @@ export async function parsePackageAssets(packagePath: string): Promise<PackageAs
     }
 
     console.log('[Showcase] invoking parse_package_assets...')
-    const result = await invoke<PackageAssetList>('parse_package_assets', { path: packagePath })
+    const result = await commands.parsePackageAssets(packagePath)
     console.log('[Showcase] got', result.total_count, 'entries')
 
     if (fileSize > 0) {
@@ -111,7 +111,5 @@ export async function extractSingleAsset(
   guid: string,
   targetDir: string,
 ): Promise<string[]> {
-  return await invoke<string[]>('extract_single_asset', {
-    request: { package_path: packagePath, guid, target_dir: targetDir },
-  })
+  return await commands.extractSingleAsset(packagePath, guid, targetDir)
 }

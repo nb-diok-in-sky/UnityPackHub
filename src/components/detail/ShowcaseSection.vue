@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import type { Asset } from '../../types/asset'
 import { useI18n } from '../../services/i18n'
 import { parsePackageAssets, clearShowcaseCache } from '../../services/coverFetcher'
 import type { PackageAssetEntry, PackageAssetList } from '../../services/coverFetcher'
+import { commands } from '../../services/tauriCommands'
 
 const SHOWCASE_TYPES = ['Prefab', 'Texture', 'Script'] as const
 type ShowcaseType = typeof SHOWCASE_TYPES[number]
@@ -14,11 +14,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-
-interface PreviewDirInfo {
-  path: string
-  existing_files: string[]
-}
 
 const showcaseData = ref<PackageAssetList | null>(null)
 const isLoading = ref(false)
@@ -39,16 +34,11 @@ async function ensurePreviewDir(): Promise<void> {
         .filter(e => e.asset_type === 'Prefab')
         .map(e => e.filename)
     : []
-  const info = await invoke<PreviewDirInfo>('ensure_preview_dir', {
-    packageName: slug,
-    prefabNames,
-  })
+  const info = await commands.ensurePreviewDir(slug, prefabNames)
   packagePreviewDir.value = info.path
 
   if (info.existing_files.length > 0) {
-    const images = await invoke<Record<string, string>>('read_all_previews', {
-      previewDir: info.path,
-    })
+    const images = await commands.readAllPreviews(info.path)
     previewImages.value = new Map(Object.entries(images))
     console.log('[Showcase] preview dir:', info.path, 'loaded:', previewImages.value.size, 'images')
   } else {
@@ -126,7 +116,7 @@ async function handleRefresh(): Promise<void> {
 
 async function handleClearAllPreviews(): Promise<void> {
   try {
-    const count = await invoke<number>('clear_all_previews')
+    const count = await commands.clearAllPreviews()
     console.log(`[Showcase] cleared ${count} preview files`)
     showcaseData.value = null
     packagePreviewDir.value = ''
@@ -238,7 +228,7 @@ defineExpose({ reset })
       </div>
 
       <div v-if="filteredEntries.length === 0" class="showcase-section__empty">
-        {{ t.noAssetsFound || '没有找到资产' }}
+        {{ t.noRelatedFiles }}
       </div>
     </template>
   </div>

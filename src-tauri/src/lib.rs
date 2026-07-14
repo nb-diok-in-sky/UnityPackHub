@@ -26,6 +26,8 @@ pub fn run() {
       unity_bridge::read_all_previews,
       unity_bridge::import_with_bridge,
       scanner::scan_directories,
+      scanner::scan_model_related_files,
+      scanner::read_asset_metadata,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

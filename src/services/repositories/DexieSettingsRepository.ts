@@ -1,7 +1,6 @@
 import type { UserSettings } from '../../types/asset'
 import type { ISettingsRepository } from './ISettingsRepository'
 import { DEFAULT_SETTINGS } from '../../types/asset'
-import { appDataDir } from '@tauri-apps/api/path'
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from '@tauri-apps/plugin-fs'
 
 const SETTINGS_FILE = 'settings.json'
@@ -53,6 +52,7 @@ export class DexieSettingsRepository implements ISettingsRepository {
       console.log('[Settings] saved OK')
     } catch (error) {
       console.error('[Settings] save FAILED:', error)
+      throw error
     }
   }
 }

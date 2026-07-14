@@ -5,6 +5,24 @@ interface ScannedFile {
   fileName: string
   filePath: string
   fileSize: number
+  assetKind: 'package' | 'model'
+}
+
+interface RelatedFile {
+  fileName: string
+  filePath: string
+  fileSize: number
+  fileType: string
+}
+
+interface AssetMetadata {
+  originalName: string
+  inferredObject: string | null
+  format: string | null
+  boundsText: string | null
+  path: string
+  sourceAsset: string | null
+  confidence: string | null
 }
 
 interface PreviewDirInfo {
@@ -50,6 +68,12 @@ interface PackageInfo {
 export const commands = {
   scanDirectories: (dirs: string[]) =>
     invoke<ScannedFile[]>('scan_directories', { dirs }),
+
+  scanModelRelatedFiles: (modelPath: string) =>
+    invoke<RelatedFile[]>('scan_model_related_files', { modelPath }),
+
+  readAssetMetadata: (jsonPath: string, assetPath: string) =>
+    invoke<AssetMetadata | null>('read_asset_metadata', { jsonPath, assetPath }),
 
   parseUnityPackage: (path: string) =>
     invoke<PackageInfo>('parse_unity_package', { path }),
@@ -107,4 +131,6 @@ export type {
   PackageAssetEntry,
   PackageAssetList,
   PackageInfo,
+  RelatedFile,
+  AssetMetadata,
 }

@@ -97,6 +97,10 @@ async function handleOpenLocation(): Promise<void> {
         <span class="asset-card__initial">{{ initials }}</span>
       </div>
 
+      <span class="asset-card__kind-badge" :class="`asset-card__kind-badge--${asset.assetKind || 'package'}`">
+        {{ asset.assetKind === 'model' ? '3D' : 'PKG' }}
+      </span>
+
       <button class="asset-card__favorite" @click="handleFavorite">
         <q-icon
           :name="asset.isFavorite ? 'star' : 'star_border'"
@@ -234,6 +238,28 @@ async function handleOpenLocation(): Promise<void> {
     font-weight: 700;
     color: rgba(255, 255, 255, 0.9);
     text-transform: uppercase;
+  }
+
+  &__kind-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    backdrop-filter: $glass-blur;
+
+    &--package {
+      background: rgba(0, 122, 255, 0.8);
+      color: white;
+    }
+
+    &--model {
+      background: rgba(230, 81, 0, 0.85);
+      color: white;
+    }
   }
 
   &__favorite {
