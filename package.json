@@ -1,6 +1,6 @@
 {
   "name": "unitypackhub",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A standalone desktop app for managing .unitypackage files outside Unity Editor",
   "productName": "UnityPackHub",
   "author": "nb-diok-in-sky <xiaymnbnb@gmail.com>",
