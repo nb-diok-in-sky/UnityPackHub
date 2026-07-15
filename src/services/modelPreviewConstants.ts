@@ -1,0 +1,4 @@
+export const MODEL_PREVIEW_VERSION = 4
+export const MODEL_PREVIEW_BATCH_SIZE = 20
+export const MODEL_PREVIEW_TIMEOUT_MS = 10 * 60 * 1000
+

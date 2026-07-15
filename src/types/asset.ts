@@ -1,4 +1,6 @@
 export type AssetKind = 'package' | 'model'
+export type ModelCoverStatus = 'pending' | 'completed' | 'failed' | 'not-needed'
+export type ModelCoverFilter = 'all' | ModelCoverStatus
 
 export interface Asset {
   id: string
@@ -7,6 +9,9 @@ export interface Asset {
   filePath: string
   fileSize: number
   thumbnailPath: string
+  modelPreviewVersion?: number
+  modelPreviewError?: string
+  modelPreviewEligible?: boolean
   notes: string
   tagIds: string[]
   isFavorite: boolean
@@ -20,6 +25,7 @@ export interface Tag {
   id: string
   label: string
   color: string
+  isSystem?: boolean
 }
 
 export interface AssetGroup {
@@ -29,6 +35,18 @@ export interface AssetGroup {
   assetIds: string[]
   order: number
   createdAt: number
+  source?: 'manual' | 'classification'
+  sourceKey?: string
+  assetKind?: AssetKind
+}
+
+export interface ClassificationSettings {
+  enabled: boolean
+  jsonPath: string
+}
+
+export interface ShaderAdapterSettings {
+  rulesPath: string
 }
 
 export interface ScanDirectory {
@@ -55,6 +73,9 @@ export interface UserSettings {
   locale: AppLocale
   theme: AppTheme
   quickLinks: QuickLink[]
+  classification: ClassificationSettings
+  shaderAdapters: ShaderAdapterSettings
+  defaultPipelineTagsInitialized?: boolean
 }
 
 export type CardSize = 'sm' | 'md' | 'lg'
@@ -84,4 +105,12 @@ export const DEFAULT_SETTINGS: UserSettings = {
     { name: 'OpenGameArt', url: 'https://opengameart.org', icon: 'palette' },
     { name: 'Kenney', url: 'https://kenney.nl', icon: 'extension' },
   ],
+  classification: {
+    enabled: false,
+    jsonPath: '',
+  },
+  shaderAdapters: {
+    rulesPath: '',
+  },
+  defaultPipelineTagsInitialized: false,
 }

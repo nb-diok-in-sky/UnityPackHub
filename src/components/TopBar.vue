@@ -4,7 +4,12 @@ import type { CardSize, SortKey } from '../types/asset'
 import { useAssetStore } from '../stores/assetStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useI18n } from '../services/i18n'
-import { startModelPreviewGeneration, type ModelPreviewProgress } from '../services/modelPreviewService'
+import {
+  needsModelPreview,
+  cancelModelPreviewGeneration,
+  startModelPreviewGeneration,
+  type ModelPreviewProgress,
+} from '../services/modelPreviewService'
 import { commands } from '../services/tauriCommands'
 
 const emit = defineEmits<{
@@ -21,8 +26,17 @@ const isGeneratingModelCovers = ref(false)
 const modelCoverProgress = ref<ModelPreviewProgress | null>(null)
 const showModelCoverDialog = ref(false)
 const modelCoverLimit = ref(20)
+const generateFromCurrentView = ref(true)
 const missingModelCoverCount = computed(() =>
-  assetStore.assets.filter((asset) => asset.assetKind === 'model' && !asset.thumbnailPath).length
+  assetStore.assets.filter(needsModelPreview).length
+)
+const currentViewPendingAssets = computed(() =>
+  assetStore.filteredAssets.filter(needsModelPreview)
+)
+const generationCandidates = computed(() =>
+  generateFromCurrentView.value
+    ? currentViewPendingAssets.value
+    : assetStore.assets.filter(needsModelPreview)
 )
 
 watch(missingModelCoverCount, (count) => {
@@ -80,7 +94,7 @@ async function handleGenerateModelCovers(): Promise<void> {
   }
   isGeneratingModelCovers.value = true
   try {
-    await startModelPreviewGeneration(editorPath, assetStore.assets, modelCoverLimit.value, (progress) => {
+    await startModelPreviewGeneration(editorPath, generationCandidates.value, modelCoverLimit.value, (progress) => {
       modelCoverProgress.value = progress
     })
   } finally {
@@ -88,9 +102,15 @@ async function handleGenerateModelCovers(): Promise<void> {
   }
 }
 
+async function handleCancelModelCovers(): Promise<void> {
+  if (!isGeneratingModelCovers.value) return
+  await cancelModelPreviewGeneration()
+}
+
 function openModelCoverDialog(): void {
   if (missingModelCoverCount.value === 0) return
-  modelCoverLimit.value = Math.min(20, missingModelCoverCount.value)
+  generateFromCurrentView.value = true
+  modelCoverLimit.value = Math.min(20, Math.max(1, currentViewPendingAssets.value.length))
   showModelCoverDialog.value = true
 }
 </script>
@@ -129,6 +149,12 @@ function openModelCoverDialog(): void {
       <span v-if="modelCoverProgress && isGeneratingModelCovers" class="topbar__model-progress">
         {{ modelCoverProgress.completed }}/{{ modelCoverProgress.total }}
       </span>
+      <q-btn
+        v-if="isGeneratingModelCovers"
+        flat dense round icon="stop_circle" size="sm" color="negative"
+        :title="t.cancel"
+        @click="handleCancelModelCovers"
+      />
 
       <q-btn
         v-if="assetStore.activeAssetKind === 'model'"
@@ -140,6 +166,40 @@ function openModelCoverDialog(): void {
         :title="t.generateModelCovers"
         @click="openModelCoverDialog"
       />
+
+      <q-btn-dropdown
+        v-if="assetStore.activeAssetKind === 'model'"
+        flat
+        dense
+        icon="filter_alt"
+        size="sm"
+        color="grey-7"
+        :label="`${assetStore.pendingModelCoverCount}`"
+        :title="t.modelCoverFilter"
+      >
+        <q-list dense>
+          <q-item clickable v-close-popup @click="assetStore.setModelCoverFilter('all')">
+            <q-item-section>{{ t.modelCoverAll }}</q-item-section>
+            <q-item-section side>{{ assetStore.modelCount }}</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="assetStore.setModelCoverFilter('pending')">
+            <q-item-section>{{ t.modelCoverPending }}</q-item-section>
+            <q-item-section side>{{ assetStore.pendingModelCoverCount }}</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="assetStore.setModelCoverFilter('completed')">
+            <q-item-section>{{ t.modelCoverCompleted }}</q-item-section>
+            <q-item-section side>{{ assetStore.completedModelCoverCount }}</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="assetStore.setModelCoverFilter('failed')">
+            <q-item-section>{{ t.modelCoverFailed }}</q-item-section>
+            <q-item-section side>{{ assetStore.failedModelCoverCount }}</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="assetStore.setModelCoverFilter('not-needed')">
+            <q-item-section>{{ t.modelCoverNotNeeded }}</q-item-section>
+            <q-item-section side>{{ assetStore.ineligibleModelCoverCount }}</q-item-section>
+          </q-item>
+        </q-list>
+      </q-btn-dropdown>
 
       <div class="topbar__size-group">
         <q-btn
@@ -203,15 +263,23 @@ function openModelCoverDialog(): void {
         <q-card-section>
           <div class="text-h6">{{ t.modelCoverBatchTitle }}</div>
           <div class="text-caption text-grey-7">
-            {{ t.modelCoverMissing }}：{{ missingModelCoverCount }}
+            {{ t.modelCoverMissing }}: {{ missingModelCoverCount }}
+          </div>
+          <div class="text-caption text-grey-7">
+            {{ t.modelCoverCurrentView }}: {{ currentViewPendingAssets.length }}
           </div>
         </q-card-section>
         <q-card-section>
+          <q-toggle
+            v-model="generateFromCurrentView"
+            :label="t.modelCoverUseCurrentView"
+            class="q-mb-md"
+          />
           <div class="model-cover-dialog__value">{{ modelCoverLimit }}</div>
           <q-slider
             v-model="modelCoverLimit"
             :min="1"
-            :max="Math.max(1, missingModelCoverCount)"
+            :max="Math.max(1, generationCandidates.length)"
             :step="1"
             label
             color="primary"
@@ -221,7 +289,7 @@ function openModelCoverDialog(): void {
             type="number"
             dense outlined
             :min="1"
-            :max="Math.max(1, missingModelCoverCount)"
+            :max="Math.max(1, generationCandidates.length)"
             :label="t.modelCoverBatchCount"
           />
         </q-card-section>

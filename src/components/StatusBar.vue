@@ -17,6 +17,14 @@ const totalSizeDisplay = computed(() => formatBytes(assetStore.totalSize))
     <span>{{ assetStore.filteredCount }} {{ t.shown }}</span>
     <span class="statusbar__dot" />
     <span>{{ totalSizeDisplay }}</span>
+    <template v-if="assetStore.activeAssetKind === 'model'">
+      <span class="statusbar__dot" />
+      <span>{{ t.modelCoverPending }} {{ assetStore.pendingModelCoverCount }}</span>
+      <span class="statusbar__dot" />
+      <span>{{ t.modelCoverCompleted }} {{ assetStore.completedModelCoverCount }}</span>
+      <span class="statusbar__dot" />
+      <span>{{ t.modelCoverNotNeeded }} {{ assetStore.ineligibleModelCoverCount }}</span>
+    </template>
   </div>
 </template>
 

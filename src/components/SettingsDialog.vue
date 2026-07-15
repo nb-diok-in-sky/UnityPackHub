@@ -6,6 +6,9 @@ import type { AppLocale, AppTheme } from '../types/asset'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { open as openUrl } from '@tauri-apps/plugin-shell'
 import { useAssetStore } from '../stores/assetStore'
+import { useGroupStore } from '../stores/groupStore'
+import { classificationService } from '../services/classificationService'
+import ShaderAdapterSettings from './settings/ShaderAdapterSettings.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -17,6 +20,7 @@ const emit = defineEmits<{
 
 const settingsStore = useSettingsStore()
 const assetStore = useAssetStore()
+const groupStore = useGroupStore()
 const { t } = useI18n()
 
 const showAddLink = ref(false)
@@ -24,6 +28,7 @@ const newLinkName = ref('')
 const newLinkUrl = ref('')
 const detectedUnityEditors = ref<string[]>([])
 const isDetectingUnity = ref(false)
+const isApplyingClassification = ref(false)
 
 async function addDirectory(): Promise<void> {
   const selected = await openDialog({ directory: true, multiple: false })
@@ -71,6 +76,30 @@ async function chooseUnityEditor(): Promise<void> {
     await settingsStore.setUnityEditorPath(selected)
   }
 }
+
+async function chooseClassificationJson(): Promise<void> {
+  const selected = await openDialog({
+    directory: false,
+    multiple: false,
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  })
+  if (!selected || typeof selected !== 'string') return
+
+  isApplyingClassification.value = true
+  try {
+    await settingsStore.setClassificationJsonPath(selected)
+    await assetStore.scan()
+  } finally {
+    isApplyingClassification.value = false
+  }
+}
+
+async function clearClassificationJson(): Promise<void> {
+  await settingsStore.setClassificationJsonPath('')
+  await classificationService.clear()
+  await groupStore.load()
+}
+
 </script>
 
 <template>
@@ -147,6 +176,42 @@ async function chooseUnityEditor(): Promise<void> {
           class="q-mt-sm"
           @click="addDirectory"
         />
+
+        <q-separator class="q-my-lg" />
+
+        <div class="text-subtitle2 q-mb-sm">{{ t.classificationTable }}</div>
+        <div class="text-caption text-grey-7 q-mb-sm">{{ t.classificationTableHint }}</div>
+        <q-input
+          :model-value="settingsStore.settings.classification.jsonPath"
+          dense
+          outlined
+          readonly
+          :placeholder="t.classificationTablePlaceholder"
+          class="q-mb-sm"
+        />
+        <div class="row q-gutter-sm">
+          <q-btn
+            outline
+            dense
+            :label="t.chooseClassificationTable"
+            icon="table_view"
+            color="primary"
+            :loading="isApplyingClassification"
+            @click="chooseClassificationJson"
+          />
+          <q-btn
+            v-if="settingsStore.settings.classification.jsonPath"
+            flat
+            dense
+            :label="t.clearClassificationTable"
+            color="grey"
+            @click="clearClassificationJson"
+          />
+        </div>
+
+        <q-separator class="q-my-lg" />
+
+        <ShaderAdapterSettings />
 
         <q-separator class="q-my-lg" />
 

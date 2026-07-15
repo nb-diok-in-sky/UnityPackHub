@@ -1,6 +1,7 @@
 mod package_parser;
 mod scanner;
 mod unity_bridge;
+mod model_preview;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,13 +26,15 @@ pub fn run() {
             unity_bridge::read_preview_image,
             unity_bridge::read_all_previews,
             unity_bridge::import_with_bridge,
-            unity_bridge::discover_unity_editors,
-            unity_bridge::start_model_preview_job,
-            unity_bridge::collect_model_preview_results,
-            unity_bridge::read_model_preview_image,
+            model_preview::discover_unity_editors,
+            model_preview::start_model_preview_job,
+            model_preview::collect_model_preview_results,
+            model_preview::cancel_model_preview_job,
+            model_preview::read_model_preview_image,
             scanner::scan_directories,
             scanner::scan_model_related_files,
             scanner::read_asset_metadata,
+            scanner::read_asset_metadata_table,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

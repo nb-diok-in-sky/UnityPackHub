@@ -1,11 +1,15 @@
 import type { Asset, AssetKind, ScanDirectory } from '../types/asset'
-import { assetRepository } from './repositories'
+import { assetRepository, groupRepository } from './repositories'
 import { v4 as uuidv4 } from 'uuid'
 import { eventBus } from './eventBus'
 import { commands } from './tauriCommands'
+import { classificationService } from './classificationService'
 
 export class ScanService {
-  async scanDirectories(directories: ScanDirectory[]): Promise<Asset[]> {
+  async scanDirectories(
+    directories: ScanDirectory[],
+    classificationJsonPath = '',
+  ): Promise<Asset[]> {
     const enabledDirs = directories.filter((d) => d.enabled)
     const dirPaths = enabledDirs.map((d) => d.path)
 
@@ -28,12 +32,17 @@ export class ScanService {
       tagIds: [],
       isFavorite: false,
       assetKind: (f.assetKind === 'model' ? 'model' : 'package') as AssetKind,
+      ...(f.assetKind === 'model' ? { modelPreviewEligible: isLikelyRenderableModel(f.filePath) } : {}),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       lastUsedAt: 0,
     }))
 
     await this.syncWithDatabase(discoveredAssets, new Set(dirPaths))
+    if (classificationJsonPath) {
+      const syncedAssets = await assetRepository.getAll()
+      await classificationService.sync(classificationJsonPath, syncedAssets)
+    }
     eventBus.emit('scan:complete', { count: discoveredAssets.length })
     return discoveredAssets
   }
@@ -47,6 +56,18 @@ export class ScanService {
     const scannedPaths = new Set(scannedAssets.map((a) => a.filePath))
 
     const newAssets = scannedAssets.filter((a) => !existingByPath.has(a.filePath))
+
+    await Promise.all(scannedAssets.map(async (scanned) => {
+      const existing = existingByPath.get(scanned.filePath)
+      if (!existing || scanned.assetKind !== 'model') return
+      if (existing.modelPreviewVersion) return
+      if (scanned.modelPreviewEligible === undefined) return
+      if (existing.modelPreviewEligible === scanned.modelPreviewEligible) return
+      await assetRepository.update(existing.id, {
+        modelPreviewEligible: scanned.modelPreviewEligible,
+        updatedAt: Date.now(),
+      })
+    }))
 
     const movedAssets: Array<{ existing: Asset; scanned: Asset }> = []
     const orphanNew = newAssets.filter((a) => {
@@ -88,8 +109,25 @@ export class ScanService {
       .map((a) => a.id)
     if (removedIds.length > 0) {
       await assetRepository.bulkDelete(removedIds)
+      const removed = new Set(removedIds)
+      const groups = await groupRepository.getAll()
+      await Promise.all(groups.map(async (group) => {
+        const assetIds = group.assetIds.filter((assetId) => !removed.has(assetId))
+        if (assetIds.length !== group.assetIds.length) {
+          await groupRepository.update(group.id, { assetIds })
+        }
+      }))
     }
   }
+}
+
+function isLikelyRenderableModel(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/').toLowerCase()
+  const fileName = normalized.split('/').pop() ?? ''
+  const isAnimationDirectory = /\/(animation|animations|anim|motion|motions)\//.test(normalized)
+  const isAnimationName = /^@/.test(fileName)
+    || /(^|[_-])(idle|walk|run|attack|skill|motion|anim|strafing|meditate|pickup|greet)([_-]|\.)/.test(fileName)
+  return !(isAnimationDirectory || isAnimationName)
 }
 
 export const scanService = new ScanService()

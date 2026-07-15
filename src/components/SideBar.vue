@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAssetStore } from '../stores/assetStore'
 import { useTagStore } from '../stores/tagStore'
 import { useGroupStore } from '../stores/groupStore'
@@ -40,10 +40,15 @@ const APPLE_COLORS = [
   { label: 'Yellow', value: '#FFCC00' },
 ]
 
-function selectAll(): void {
-  tagStore.setActiveTag(null)
-  groupStore.setActiveGroup(null)
-  assetStore.setFavoritesOnly(false)
+const visibleGroups = computed(() =>
+  groupStore.groups.filter((group) =>
+    group.source !== 'classification'
+    && (group.assetKind === undefined || group.assetKind === assetStore.activeAssetKind)
+  )
+)
+
+function selectAssetKind(kind: 'package' | 'model'): void {
+  assetStore.setActiveAssetKind(kind)
 }
 
 function selectFavorites(): void {
@@ -94,7 +99,7 @@ async function deleteTag(id: string): Promise<void> {
 async function createGroup(): Promise<void> {
   const name = newGroupName.value.trim()
   if (!name) return
-  await groupStore.create(name, newGroupIcon.value)
+  await groupStore.create(name, newGroupIcon.value, assetStore.activeAssetKind)
   newGroupName.value = ''
   newGroupIcon.value = 'folder'
   showNewGroup.value = false
@@ -122,17 +127,30 @@ async function deleteGroup(id: string): Promise<void> {
 
 <template>
   <div class="sidebar">
-    <nav class="sidebar__nav">
+    <div class="sidebar__kind-switcher">
       <button
-        class="sidebar__item"
-        :class="{ 'sidebar__item--active': !tagStore.activeTagId && !groupStore.activeGroupId && !assetStore.showFavoritesOnly }"
-        @click="selectAll"
+        class="sidebar__kind-button"
+        :class="{ 'sidebar__kind-button--active': assetStore.activeAssetKind === 'package' }"
+        @click="selectAssetKind('package')"
       >
-        <q-icon name="apps" size="18px" />
-        <span>{{ t.all }}</span>
-        <span class="sidebar__count">{{ assetStore.totalCount }}</span>
+        <q-icon name="inventory_2" size="17px" />
+        <span>{{ t.packages }}</span>
+        <span class="sidebar__count">{{ assetStore.packageCount }}</span>
       </button>
+      <button
+        class="sidebar__kind-button"
+        :class="{ 'sidebar__kind-button--active': assetStore.activeAssetKind === 'model' }"
+        @click="selectAssetKind('model')"
+      >
+        <q-icon name="view_in_ar" size="17px" />
+        <span>{{ t.models }}</span>
+        <span class="sidebar__count">{{ assetStore.modelCount }}</span>
+      </button>
+    </div>
 
+    <div class="sidebar__divider" />
+
+    <nav class="sidebar__nav">
       <button
         class="sidebar__item"
         :class="{ 'sidebar__item--active': assetStore.showFavoritesOnly }"
@@ -153,7 +171,7 @@ async function deleteGroup(id: string): Promise<void> {
 
     <nav class="sidebar__nav">
       <button
-        v-for="group in groupStore.groups"
+        v-for="group in visibleGroups"
         :key="group.id"
         class="sidebar__item"
         :class="{ 'sidebar__item--active': groupStore.activeGroupId === group.id }"
@@ -162,9 +180,15 @@ async function deleteGroup(id: string): Promise<void> {
       >
         <q-icon :name="group.icon" size="18px" />
         <span>{{ group.name }}</span>
+        <q-icon
+          v-if="group.source === 'classification'"
+          name="sync"
+          size="14px"
+          :title="t.autoClassificationGroup"
+        />
         <span class="sidebar__count">{{ group.assetIds.length }}</span>
 
-        <q-menu context-menu>
+        <q-menu v-if="group.source !== 'classification'" context-menu>
           <q-list dense>
             <q-item clickable v-close-popup @click="startEditGroup(group)">
               <q-item-section>{{ t.edit }}</q-item-section>
@@ -402,6 +426,38 @@ async function deleteGroup(id: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.sidebar__kind-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sidebar__kind-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid $color-border;
+  background: var(--hover-overlay);
+  border-radius: 8px;
+  color: $color-secondary;
+  cursor: pointer;
+  font-size: 12px;
+  transition: $transition-fast;
+
+  &:hover {
+    border-color: $apple-blue;
+    color: $apple-blue;
+  }
+
+  &--active {
+    border-color: $apple-blue;
+    background: var(--accent-soft);
+    color: $apple-blue;
+  }
 }
 
 .sidebar__item {

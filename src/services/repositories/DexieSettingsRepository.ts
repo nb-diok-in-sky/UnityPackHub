@@ -32,7 +32,19 @@ export class DexieSettingsRepository implements ISettingsRepository {
       const text = await readTextFile(SETTINGS_FILE, { baseDir: BaseDirectory.AppData })
       const parsed = JSON.parse(text) as Partial<UserSettings>
       console.log('[Settings] loaded, scanDirs:', parsed.scanDirectories?.length ?? 0)
-      return { ...DEFAULT_SETTINGS, ...parsed, id: 'user' }
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        classification: {
+          ...DEFAULT_SETTINGS.classification,
+          ...parsed.classification,
+        },
+        shaderAdapters: {
+          ...DEFAULT_SETTINGS.shaderAdapters,
+          ...parsed.shaderAdapters,
+        },
+        id: 'user',
+      }
     } catch (error) {
       console.error('[Settings] load FAILED:', error)
       return { ...DEFAULT_SETTINGS }

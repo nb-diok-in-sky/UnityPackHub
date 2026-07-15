@@ -28,7 +28,12 @@ const hasMore = computed(() =>
   displayCount.value < assetStore.filteredAssets.length
 )
 
-watch(() => [assetStore.searchQuery, assetStore.showFavoritesOnly], () => {
+watch(() => [
+  assetStore.searchQuery,
+  assetStore.showFavoritesOnly,
+  assetStore.activeAssetKind,
+  assetStore.modelCoverFilter,
+], () => {
   displayCount.value = PAGE_SIZE
 })
 

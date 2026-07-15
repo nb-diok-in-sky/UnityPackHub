@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import type { Asset, Tag } from '../types/asset'
+import { ref, computed, watch } from 'vue'
+import type { Asset } from '../types/asset'
 import { useAssetStore } from '../stores/assetStore'
-import { useTagStore } from '../stores/tagStore'
-import { useThumbnailStore } from '../stores/thumbnailStore'
 import { useI18n } from '../services/i18n'
 import { importToUnity, openFileLocation, detectUnityProject } from '../services/unityImporter'
 import { formatBytes } from '../utils/formatBytes'
-import { readFile } from '@tauri-apps/plugin-fs'
-import TagPill from './TagPill.vue'
 import ShowcaseSection from './detail/ShowcaseSection.vue'
 import ModelShowcaseSection from './detail/ModelShowcaseSection.vue'
 import UnityPreviewsSection from './detail/UnityPreviewsSection.vue'
+import AssetCoverEditor from './detail/AssetCoverEditor.vue'
+import AssetNotesEditor from './detail/AssetNotesEditor.vue'
+import AssetTagEditor from './detail/AssetTagEditor.vue'
 
 const props = defineProps<{
   asset: Asset | null
@@ -22,24 +21,8 @@ const emit = defineEmits<{
 }>()
 
 const assetStore = useAssetStore()
-const tagStore = useTagStore()
-const thumbnailStore = useThumbnailStore()
 const { t } = useI18n()
 
-const coverSrc = computed(() => {
-  if (!props.asset) return ''
-  const blobUrl = thumbnailStore.getUrl(props.asset.id)
-  if (blobUrl) return blobUrl
-  const tp = props.asset.thumbnailPath
-  if (tp && tp.startsWith('data:')) return tp
-  return ''
-})
-
-const isEditingNotes = ref(false)
-const editNotesValue = ref('')
-const notesInputRef = ref<HTMLTextAreaElement | null>(null)
-const isDragOver = ref(false)
-const showTagMenu = ref(false)
 const isImporting = ref(false)
 const importStatus = ref('')
 
@@ -50,18 +33,6 @@ const previewsRef = ref<InstanceType<typeof UnityPreviewsSection> | null>(null)
 const isPackage = computed(() => !props.asset || props.asset.assetKind !== 'model')
 const isModel = computed(() => props.asset?.assetKind === 'model')
 
-const assetTags = computed(() => {
-  if (!props.asset) return []
-  return props.asset.tagIds
-    .map((id) => tagStore.getTagById(id))
-    .filter((t): t is Tag => t !== undefined)
-})
-
-const availableTags = computed(() => {
-  if (!props.asset) return []
-  return tagStore.tags.filter((t) => !props.asset!.tagIds.includes(t.id))
-})
-
 const fileSizeDisplay = computed(() =>
   props.asset ? formatBytes(props.asset.fileSize) : ''
 )
@@ -69,11 +40,6 @@ const fileSizeDisplay = computed(() =>
 const createdDateDisplay = computed(() => {
   if (!props.asset) return ''
   return new Date(props.asset.createdAt).toLocaleDateString('zh-CN')
-})
-
-watch(() => props.asset, () => {
-  isEditingNotes.value = false
-  showTagMenu.value = false
 })
 
 watch(() => props.asset?.id, () => {
@@ -85,175 +51,6 @@ watch(() => props.asset?.id, () => {
     previewsRef.value?.loadPreviews()
   }
 })
-
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tiff']
-
-let unlistenDragDrop: (() => void) | null = null
-
-onMounted(async () => {
-  const { getCurrentWebview } = await import('@tauri-apps/api/webview')
-  unlistenDragDrop = await getCurrentWebview().onDragDropEvent(async (event) => {
-    if (event.payload.type === 'enter' || event.payload.type === 'over') {
-      if (props.asset) isDragOver.value = true
-    } else if (event.payload.type === 'leave') {
-      isDragOver.value = false
-    } else if (event.payload.type === 'drop') {
-      isDragOver.value = false
-      if (!props.asset) return
-      const imgPath = event.payload.paths.find(p =>
-        IMAGE_EXTENSIONS.some(ext => p.toLowerCase().endsWith(ext))
-      )
-      if (imgPath) await setCoverFromPath(imgPath)
-    }
-  })
-
-  window.addEventListener('paste', handlePaste)
-})
-
-onUnmounted(() => {
-  unlistenDragDrop?.()
-  window.removeEventListener('paste', handlePaste)
-})
-
-async function handlePaste(event: ClipboardEvent): Promise<void> {
-  if (!props.asset) return
-  const items = event.clipboardData?.items
-  if (!items) return
-
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      event.preventDefault()
-      const file = item.getAsFile()
-      if (file) {
-        await setCoverFromFile(file)
-        return
-      }
-    }
-  }
-
-  const text = event.clipboardData?.getData('text/plain') ?? ''
-  if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp|svg)/i.test(text)) {
-    event.preventDefault()
-    await setCoverFromUrl(text)
-  }
-}
-
-async function setCoverFromPath(filePath: string): Promise<void> {
-  if (!props.asset) return
-  try {
-    const data = await readFile(filePath)
-    const ext = filePath.split('.').pop()?.toLowerCase() ?? 'png'
-    const mimeMap: Record<string, string> = {
-      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-      gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-      svg: 'image/svg+xml', ico: 'image/x-icon', tiff: 'image/tiff',
-    }
-    const blob = new Blob([data], { type: mimeMap[ext] ?? 'image/png' })
-    await thumbnailStore.setFromBlob(props.asset.id, blob)
-    await assetStore.updateAsset(props.asset.id, { thumbnailPath: 'db' })
-  } catch (err) {
-    console.error('[Cover] Failed to read file:', err)
-  }
-}
-
-function startEditNotes(): void {
-  if (!props.asset) return
-  editNotesValue.value = props.asset.notes
-  isEditingNotes.value = true
-  nextTick(() => {
-    notesInputRef.value?.focus()
-  })
-}
-
-async function saveNotes(): Promise<void> {
-  if (!props.asset) return
-  isEditingNotes.value = false
-  if (editNotesValue.value !== props.asset.notes) {
-    await assetStore.updateAsset(props.asset.id, { notes: editNotesValue.value })
-  }
-}
-
-async function handleCoverDrop(event: DragEvent): Promise<void> {
-  event.preventDefault()
-  isDragOver.value = false
-  if (!props.asset || !event.dataTransfer) return
-
-  const coverDataUrl = event.dataTransfer.getData('application/cover-image')
-  if (coverDataUrl) {
-    await thumbnailStore.setFromDataUrl(props.asset.id, coverDataUrl)
-    await assetStore.updateAsset(props.asset.id, { thumbnailPath: 'db' })
-    return
-  }
-
-  if (event.dataTransfer.files.length > 0) {
-    const file = event.dataTransfer.files[0]
-    if (file && file.type.startsWith('image/')) {
-      await setCoverFromFile(file)
-      return
-    }
-  }
-
-  const html = event.dataTransfer.getData('text/html')
-  if (html) {
-    const match = html.match(/<img[^>]+src=["']([^"']+)["']/)
-    if (match?.[1]) {
-      await setCoverFromUrl(match[1])
-      return
-    }
-  }
-
-  const url = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain')
-  if (url && /^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp|svg)/i.test(url)) {
-    await setCoverFromUrl(url)
-  }
-}
-
-async function handleCoverSelect(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  if (!props.asset || !input.files?.length) return
-  const file = input.files[0]
-  if (!file) return
-  await setCoverFromFile(file)
-  input.value = ''
-}
-
-async function setCoverFromFile(file: File): Promise<void> {
-  if (!props.asset) return
-  await thumbnailStore.setFromBlob(props.asset.id, file)
-  await assetStore.updateAsset(props.asset.id, { thumbnailPath: 'db' })
-}
-
-async function setCoverFromUrl(url: string): Promise<void> {
-  if (!props.asset) return
-  try {
-    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http')
-    const response = await tauriFetch(url)
-    const blob = await response.blob()
-    await thumbnailStore.setFromBlob(props.asset.id, blob)
-    await assetStore.updateAsset(props.asset.id, { thumbnailPath: 'db' })
-  } catch (err) {
-    console.error('[Cover] Failed to fetch image from URL:', err)
-  }
-}
-
-async function removeCover(): Promise<void> {
-  if (!props.asset) return
-  await thumbnailStore.remove(props.asset.id)
-  await assetStore.updateAsset(props.asset.id, { thumbnailPath: '' })
-}
-
-async function addTag(tagId: string): Promise<void> {
-  if (!props.asset) return
-  const newTagIds = [...props.asset.tagIds, tagId]
-  await assetStore.updateAsset(props.asset.id, { tagIds: newTagIds })
-  showTagMenu.value = false
-}
-
-async function removeTag(tagId: string): Promise<void> {
-  if (!props.asset) return
-  const newTagIds = props.asset.tagIds.filter((id) => id !== tagId)
-  await assetStore.updateAsset(props.asset.id, { tagIds: newTagIds })
-}
 
 async function toggleFavorite(): Promise<void> {
   if (!props.asset) return
@@ -313,39 +110,7 @@ async function handleSearchUnityStore(): Promise<void> {
         </div>
 
         <div class="detail-panel__scroll">
-          <!-- Cover Image -->
-          <div
-            class="detail-panel__cover"
-            :class="{ 'detail-panel__cover--dragover': isDragOver }"
-            @dragover.prevent="isDragOver = true"
-            @dragleave="isDragOver = false"
-            @drop="handleCoverDrop"
-          >
-            <img
-              v-if="coverSrc"
-              :src="coverSrc"
-              :alt="asset.name"
-              class="detail-panel__cover-img"
-            />
-            <div v-else class="detail-panel__cover-placeholder">
-              <q-icon name="add_photo_alternate" size="32px" color="grey-5" />
-              <span>{{ t.coverDropHint }}</span>
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              class="detail-panel__cover-input"
-              @change="handleCoverSelect"
-            />
-            <q-btn
-              v-if="coverSrc"
-              flat round dense
-              icon="close"
-              size="xs"
-              class="detail-panel__cover-remove"
-              @click.stop="removeCover"
-            />
-          </div>
+          <AssetCoverEditor :asset="asset" />
 
           <!-- Name -->
           <div class="detail-panel__section">
@@ -387,63 +152,8 @@ async function handleSearchUnityStore(): Promise<void> {
             </div>
           </div>
 
-          <!-- Notes -->
-          <div class="detail-panel__section detail-panel__section--vertical">
-            <span class="detail-panel__label">{{ t.notes }}</span>
-            <div v-if="isEditingNotes" class="detail-panel__notes-edit">
-              <textarea
-                ref="notesInputRef"
-                v-model="editNotesValue"
-                class="detail-panel__notes-textarea"
-                rows="4"
-                :placeholder="t.notesPlaceholder"
-                @blur="saveNotes"
-                @keydown.ctrl.enter="saveNotes"
-              />
-            </div>
-            <div v-else class="detail-panel__notes-display" @dblclick="startEditNotes">
-              <span v-if="asset.notes">{{ asset.notes }}</span>
-              <span v-else class="detail-panel__notes-placeholder" @click="startEditNotes">
-                {{ t.notesPlaceholder }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Tags -->
-          <div class="detail-panel__section detail-panel__section--vertical">
-            <div class="detail-panel__label-row">
-              <span class="detail-panel__label">{{ t.tags }}</span>
-              <q-btn
-                flat round dense icon="add" size="xs" color="grey-7"
-                @click="showTagMenu = !showTagMenu"
-              />
-            </div>
-
-            <div class="detail-panel__tags">
-              <div v-for="tag in assetTags" :key="tag.id" class="detail-panel__tag-item">
-                <TagPill :tag="tag" />
-                <q-btn
-                  flat round dense icon="close" size="8px" color="grey-5"
-                  class="detail-panel__tag-remove"
-                  @click="removeTag(tag.id)"
-                />
-              </div>
-              <span v-if="assetTags.length === 0" class="detail-panel__empty-hint">
-                {{ t.noTags }}
-              </span>
-            </div>
-
-            <div v-if="showTagMenu && availableTags.length > 0" class="detail-panel__tag-picker">
-              <button
-                v-for="tag in availableTags" :key="tag.id"
-                class="detail-panel__tag-option"
-                @click="addTag(tag.id)"
-              >
-                <span class="detail-panel__tag-dot" :style="{ background: tag.color }" />
-                {{ tag.label }}
-              </button>
-            </div>
-          </div>
+          <AssetNotesEditor :asset="asset" />
+          <AssetTagEditor :asset="asset" />
 
           <!-- File Info -->
           <div class="detail-panel__section detail-panel__section--vertical">
@@ -522,56 +232,6 @@ async function handleSearchUnityStore(): Promise<void> {
     gap: 20px;
   }
 
-  &__cover {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border-radius: $radius-card;
-    overflow: hidden;
-    background: $color-divider;
-    cursor: pointer;
-    transition: $transition-fast;
-    border: 2px dashed transparent;
-
-    &--dragover {
-      border-color: $apple-blue;
-      background: var(--accent-soft);
-    }
-  }
-
-  &__cover-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  &__cover-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 12px;
-    color: $color-secondary;
-  }
-
-  &__cover-input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-  }
-
-  &__cover-remove {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: var(--cover-remove-bg) !important;
-    color: white !important;
-  }
-
   &__section {
     display: flex;
     align-items: center;
@@ -598,117 +258,6 @@ async function handleSearchUnityStore(): Promise<void> {
     color: $color-secondary;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-  }
-
-  &__label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  &__notes-display {
-    padding: 8px 10px;
-    border-radius: $radius-input;
-    font-size: 13px;
-    color: $color-text;
-    line-height: 1.5;
-    min-height: 40px;
-    cursor: text;
-    transition: $transition-fast;
-
-    &:hover {
-      background: var(--hover-overlay-subtle);
-    }
-  }
-
-  &__notes-placeholder {
-    color: $color-secondary;
-    cursor: pointer;
-  }
-
-  &__notes-edit {
-    width: 100%;
-  }
-
-  &__notes-textarea {
-    width: 100%;
-    border: 1px solid $color-border;
-    border-radius: $radius-input;
-    padding: 8px 10px;
-    font-size: 13px;
-    font-family: $font-family;
-    color: $color-text;
-    resize: vertical;
-    outline: none;
-    line-height: 1.5;
-
-    &:focus {
-      border-color: $apple-blue;
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-  }
-
-  &__tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 28px;
-    align-items: center;
-  }
-
-  &__tag-item {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  &__tag-remove {
-    opacity: 0;
-    transition: $transition-fast;
-
-    .detail-panel__tag-item:hover & {
-      opacity: 1;
-    }
-  }
-
-  &__empty-hint {
-    font-size: 12px;
-    color: $color-secondary;
-  }
-
-  &__tag-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px;
-    background: $color-surface;
-    border: 1px solid $color-border;
-    border-radius: $radius-input;
-    box-shadow: $shadow-dropdown;
-  }
-
-  &__tag-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border: none;
-    background: transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    color: $color-text;
-
-    &:hover {
-      background: var(--hover-overlay);
-    }
-  }
-
-  &__tag-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
   }
 
   &__info-grid {

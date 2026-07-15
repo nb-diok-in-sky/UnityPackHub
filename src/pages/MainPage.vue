@@ -14,6 +14,7 @@ import StatusBar from '../components/StatusBar.vue'
 import AssetDetailDrawer from '../components/AssetDetailDrawer.vue'
 import MultiSelectToolbar from '../components/MultiSelectToolbar.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
+import ModelClassificationBar from '../components/ModelClassificationBar.vue'
 
 const assetStore = useAssetStore()
 const tagStore = useTagStore()
@@ -85,6 +86,7 @@ onUnmounted(() => {
 <template>
   <div class="main-page">
     <TopBar @open-settings="showSettings = true" />
+    <ModelClassificationBar />
     <MultiSelectToolbar />
 
     <div class="main-page__content">

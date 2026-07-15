@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Asset, AssetKind, SortKey, SortOrder } from '../types/asset'
+import type { Asset, AssetKind, ModelCoverFilter, SortKey, SortOrder } from '../types/asset'
 import type { ISortStrategy } from '../types/strategies'
 import { assetRepository } from '../services/repositories'
 import { scanService } from '../services/scanner'
@@ -12,6 +12,7 @@ import { NameSortStrategy } from '../services/strategies/NameSortStrategy'
 import { DateSortStrategy } from '../services/strategies/DateSortStrategy'
 import { SizeSortStrategy } from '../services/strategies/SizeSortStrategy'
 import { UsageSortStrategy } from '../services/strategies/UsageSortStrategy'
+import { getModelCoverStatus, needsModelPreview } from '../services/modelPreviewService'
 
 const STRATEGY_MAP: Record<SortKey, ISortStrategy> = {
   name: new NameSortStrategy(),
@@ -27,6 +28,7 @@ export const useAssetStore = defineStore('assets', () => {
   const selectedIds = ref<Set<string>>(new Set())
   const showFavoritesOnly = ref(false)
   const activeAssetKind = ref<AssetKind>('package')
+  const modelCoverFilter = ref<ModelCoverFilter>('all')
 
   const settingsStore = useSettingsStore()
   const tagStore = useTagStore()
@@ -36,10 +38,19 @@ export const useAssetStore = defineStore('assets', () => {
     assets.value.filter((asset) => (asset.assetKind || 'package') === activeAssetKind.value)
   )
 
+  const coverFiltered = computed<Asset[]>(() => {
+    if (activeAssetKind.value !== 'model' || modelCoverFilter.value === 'all') {
+      return kindFiltered.value
+    }
+    return kindFiltered.value.filter((asset) =>
+      getModelCoverStatus(asset) === modelCoverFilter.value
+    )
+  })
+
   const favoriteFiltered = computed<Asset[]>(() =>
     showFavoritesOnly.value
-      ? kindFiltered.value.filter((a) => a.isFavorite)
-      : kindFiltered.value
+      ? coverFiltered.value.filter((a) => a.isFavorite)
+      : coverFiltered.value
   )
 
   const tagFiltered = computed<Asset[]>(() =>
@@ -85,19 +96,38 @@ export const useAssetStore = defineStore('assets', () => {
     return items
   })
 
-  const totalCount = computed(() => assets.value.length)
+  const totalCount = computed(() => kindFiltered.value.length)
+  const libraryTotalCount = computed(() => assets.value.length)
   const packageCount = computed(() =>
     assets.value.filter((asset) => (asset.assetKind || 'package') === 'package').length
   )
   const modelCount = computed(() =>
     assets.value.filter((asset) => asset.assetKind === 'model').length
   )
+  const pendingModelCoverCount = computed(() =>
+    assets.value.filter(needsModelPreview).length
+  )
+  const completedModelCoverCount = computed(() =>
+    assets.value.filter((asset) =>
+      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'completed'
+    ).length
+  )
+  const ineligibleModelCoverCount = computed(() =>
+    assets.value.filter((asset) =>
+      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'not-needed'
+    ).length
+  )
+  const failedModelCoverCount = computed(() =>
+    assets.value.filter((asset) =>
+      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'failed'
+    ).length
+  )
   const filteredCount = computed(() => filteredAssets.value.length)
   const totalSize = computed(() =>
-    assets.value.reduce((sum, a) => sum + a.fileSize, 0)
+    kindFiltered.value.reduce((sum, a) => sum + a.fileSize, 0)
   )
   const favoriteCount = computed(() =>
-    assets.value.filter((a) => a.isFavorite).length
+    kindFiltered.value.filter((a) => a.isFavorite).length
   )
   const isMultiSelect = computed(() => selectedIds.value.size > 0)
 
@@ -108,8 +138,13 @@ export const useAssetStore = defineStore('assets', () => {
   async function scan(): Promise<void> {
     isScanning.value = true
     try {
-      await scanService.scanDirectories(settingsStore.settings.scanDirectories)
+      const classification = settingsStore.settings.classification
+      await scanService.scanDirectories(
+        settingsStore.settings.scanDirectories,
+        classification.enabled ? classification.jsonPath : '',
+      )
       await load()
+      await groupStore.load()
     } finally {
       isScanning.value = false
     }
@@ -134,6 +169,7 @@ export const useAssetStore = defineStore('assets', () => {
     const thumbnailStore = useThumbnailStore()
     await thumbnailStore.remove(id)
     await assetRepository.delete(id)
+    await groupStore.removeAssetsFromAll([id])
     assets.value = assets.value.filter((a) => a.id !== id)
     selectedIds.value.delete(id)
   }
@@ -148,6 +184,15 @@ export const useAssetStore = defineStore('assets', () => {
 
   function setActiveAssetKind(kind: AssetKind): void {
     activeAssetKind.value = kind
+    tagStore.setActiveTag(null)
+    groupStore.setActiveGroup(null)
+    showFavoritesOnly.value = false
+    modelCoverFilter.value = 'all'
+    clearSelection()
+  }
+
+  function setModelCoverFilter(filter: ModelCoverFilter): void {
+    modelCoverFilter.value = filter
     clearSelection()
   }
 
@@ -214,10 +259,16 @@ export const useAssetStore = defineStore('assets', () => {
     selectedIds,
     showFavoritesOnly,
     activeAssetKind,
+    modelCoverFilter,
     filteredAssets,
     totalCount,
+    libraryTotalCount,
     packageCount,
     modelCount,
+    pendingModelCoverCount,
+    completedModelCoverCount,
+    ineligibleModelCoverCount,
+    failedModelCoverCount,
     filteredCount,
     totalSize,
     favoriteCount,
@@ -230,6 +281,7 @@ export const useAssetStore = defineStore('assets', () => {
     setSearch,
     setFavoritesOnly,
     setActiveAssetKind,
+    setModelCoverFilter,
     paintingTagId,
     startTagPaint,
     stopTagPaint,

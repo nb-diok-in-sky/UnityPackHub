@@ -85,6 +85,22 @@ export const useSettingsStore = defineStore('settings', () => {
     await save()
   }
 
+  async function setClassificationJsonPath(path: string): Promise<void> {
+    settings.value.classification.jsonPath = path
+    settings.value.classification.enabled = path.length > 0
+    await save()
+  }
+
+  async function setClassificationEnabled(enabled: boolean): Promise<void> {
+    settings.value.classification.enabled = enabled
+    await save()
+  }
+
+  async function setShaderAdapterRulesPath(path: string): Promise<void> {
+    settings.value.shaderAdapters.rulesPath = path
+    await save()
+  }
+
   async function addQuickLink(link: QuickLink): Promise<void> {
     settings.value.quickLinks.push(link)
     await save()
@@ -109,6 +125,9 @@ export const useSettingsStore = defineStore('settings', () => {
     setAppLocale,
     setTheme,
     setUnityEditorPath,
+    setClassificationJsonPath,
+    setClassificationEnabled,
+    setShaderAdapterRulesPath,
     addQuickLink,
     removeQuickLink,
   }

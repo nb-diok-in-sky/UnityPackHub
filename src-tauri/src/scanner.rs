@@ -60,6 +60,13 @@ struct RawMetadataEntry {
     confidence: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RawMetadataDocument {
+    Entries(Vec<RawMetadataEntry>),
+    Wrapped { assets: Vec<RawMetadataEntry> },
+}
+
 #[derive(Debug, Serialize)]
 pub struct AssetMetadata {
     #[serde(rename = "originalName")]
@@ -73,6 +80,36 @@ pub struct AssetMetadata {
     #[serde(rename = "sourceAsset")]
     pub source_asset: Option<String>,
     pub confidence: Option<String>,
+}
+
+fn convert_metadata(entry: RawMetadataEntry, fallback_path: String) -> AssetMetadata {
+    let path = entry.path.clone().unwrap_or(fallback_path);
+    AssetMetadata {
+        original_name: entry.original_name.unwrap_or_else(|| filename_of(&path)),
+        inferred_object: entry.inferred_object,
+        format: entry.format,
+        bounds_text: bounds_to_text(entry.bounds_size),
+        path,
+        source_asset: entry.source_asset,
+        confidence: entry.confidence,
+    }
+}
+
+#[tauri::command]
+pub fn read_asset_metadata_table(json_path: String) -> Result<Vec<AssetMetadata>, String> {
+    let text = std::fs::read_to_string(&json_path)
+        .map_err(|e| format!("Failed to read metadata json: {}", e))?;
+    let document: RawMetadataDocument = serde_json::from_str(&text)
+        .map_err(|e| format!("Failed to parse metadata json: {}", e))?;
+    let entries = match document {
+        RawMetadataDocument::Entries(entries) => entries,
+        RawMetadataDocument::Wrapped { assets } => assets,
+    };
+
+    Ok(entries
+        .into_iter()
+        .map(|entry| convert_metadata(entry, String::new()))
+        .collect())
 }
 
 fn strip_known_suffix(name: &str, extensions: &[&str]) -> String {
@@ -246,8 +283,12 @@ pub fn read_asset_metadata(
 ) -> Result<Option<AssetMetadata>, String> {
     let text = std::fs::read_to_string(&json_path)
         .map_err(|e| format!("Failed to read metadata json: {}", e))?;
-    let entries: Vec<RawMetadataEntry> =
+    let document: RawMetadataDocument =
         serde_json::from_str(&text).map_err(|e| format!("Failed to parse metadata json: {}", e))?;
+    let entries = match document {
+        RawMetadataDocument::Entries(entries) => entries,
+        RawMetadataDocument::Wrapped { assets } => assets,
+    };
 
     let target_path = normalize_path_text(&asset_path);
     let target_name = filename_of(&asset_path).to_lowercase();
@@ -266,16 +307,5 @@ pub fn read_asset_metadata(
         false
     });
 
-    Ok(matched.map(|entry| {
-        let path = entry.path.clone().unwrap_or_else(|| asset_path.clone());
-        AssetMetadata {
-            original_name: entry.original_name.unwrap_or_else(|| filename_of(&path)),
-            inferred_object: entry.inferred_object,
-            format: entry.format,
-            bounds_text: bounds_to_text(entry.bounds_size),
-            path,
-            source_asset: entry.source_asset,
-            confidence: entry.confidence,
-        }
-    }))
+    Ok(matched.map(|entry| convert_metadata(entry, asset_path)))
 }

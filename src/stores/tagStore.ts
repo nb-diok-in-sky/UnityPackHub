@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Tag } from '../types/asset'
-import { tagRepository } from '../services/repositories'
+import { settingsRepository, tagRepository } from '../services/repositories'
 import { v4 as uuidv4 } from 'uuid'
 import { eventBus } from '../services/eventBus'
+
+const SYSTEM_TAGS: Tag[] = [
+  { id: 'system-pipeline-built-in', label: 'Built-in', color: '#34C759' },
+  { id: 'system-pipeline-urp', label: 'URP', color: '#007AFF' },
+  { id: 'system-pipeline-hdrp', label: 'HDRP', color: '#AF52DE' },
+]
 
 export const useTagStore = defineStore('tags', () => {
   const tags = ref<Tag[]>([])
@@ -23,6 +29,25 @@ export const useTagStore = defineStore('tags', () => {
 
   async function load(): Promise<void> {
     tags.value = await tagRepository.getAll()
+    const settings = await settingsRepository.get()
+    if (!settings.defaultPipelineTagsInitialized) {
+      for (const defaultTag of SYSTEM_TAGS) {
+        const existing = tags.value.find((tag) => tag.id === defaultTag.id)
+          ?? tags.value.find((tag) => tag.label.toLowerCase() === defaultTag.label.toLowerCase())
+        if (existing) {
+          if (existing.isSystem) {
+            await tagRepository.update(existing.id, { isSystem: false })
+            existing.isSystem = false
+          }
+          continue
+        }
+        await tagRepository.create(defaultTag)
+        tags.value.push(defaultTag)
+      }
+      settings.defaultPipelineTagsInitialized = true
+      await settingsRepository.save(settings)
+    }
+    tags.value.sort((a, b) => a.label.localeCompare(b.label))
   }
 
   async function create(label: string, color: string): Promise<Tag> {

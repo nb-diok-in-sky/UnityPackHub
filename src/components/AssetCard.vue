@@ -8,6 +8,7 @@ import { useThumbnailStore } from '../stores/thumbnailStore'
 import { useI18n } from '../services/i18n'
 import { importToUnity, openFileLocation } from '../services/unityImporter'
 import { formatBytes } from '../utils/formatBytes'
+import { getModelCoverStatus } from '../services/modelPreviewService'
 import TagPill from './TagPill.vue'
 
 const props = defineProps<{
@@ -27,6 +28,25 @@ const thumbnailStore = useThumbnailStore()
 const { t } = useI18n()
 
 const isSelected = computed(() => assetStore.selectedIds.has(props.asset.id))
+const availableManualGroups = computed(() =>
+  groupStore.groups.filter((group) =>
+    group.source !== 'classification'
+    && (group.assetKind === undefined || group.assetKind === props.asset.assetKind)
+  )
+)
+const modelCoverStatus = computed(() => getModelCoverStatus(props.asset))
+const modelCoverStatusLabel = computed(() => ({
+  pending: t.modelCoverPending,
+  completed: t.modelCoverCompleted,
+  failed: t.modelCoverFailed,
+  'not-needed': t.modelCoverNotNeeded,
+})[modelCoverStatus.value])
+const modelCoverStatusIcon = computed(() => ({
+  pending: 'hourglass_empty',
+  completed: 'check_circle',
+  failed: 'error',
+  'not-needed': 'remove_circle_outline',
+})[modelCoverStatus.value])
 
 const coverSrc = computed(() => {
   const blobUrl = thumbnailStore.getUrl(props.asset.id)
@@ -86,6 +106,14 @@ async function handleOpenLocation(): Promise<void> {
     @click="handleClick"
     @dblclick.prevent="handleDoubleClick"
   >
+    <div
+      v-if="asset.assetKind === 'model'"
+      class="asset-card__cover-status"
+      :class="`asset-card__cover-status--${modelCoverStatus}`"
+    >
+      <q-icon :name="modelCoverStatusIcon" size="13px" />
+      <span>{{ modelCoverStatusLabel }}</span>
+    </div>
     <div class="asset-card__cover">
       <img
         v-if="coverSrc"
@@ -127,15 +155,15 @@ async function handleOpenLocation(): Promise<void> {
           </q-item-section>
           <q-item-section>{{ asset.isFavorite ? t.unfavorite : t.favorite }}</q-item-section>
         </q-item>
-        <q-separator v-if="groupStore.groups.length > 0" />
-        <q-item v-if="groupStore.groups.length > 0" clickable>
+        <q-separator v-if="availableManualGroups.length > 0" />
+        <q-item v-if="availableManualGroups.length > 0" clickable>
           <q-item-section side><q-icon name="create_new_folder" size="16px" /></q-item-section>
           <q-item-section>{{ t.addToGroup }}</q-item-section>
           <q-item-section side><q-icon name="chevron_right" size="16px" /></q-item-section>
           <q-menu anchor="top end" self="top start">
             <q-list dense>
               <q-item
-                v-for="group in groupStore.groups"
+                v-for="group in availableManualGroups"
                 :key="group.id"
                 clickable
                 v-close-popup
@@ -211,6 +239,35 @@ async function handleOpenLocation(): Promise<void> {
     aspect-ratio: 4 / 3;
     overflow: hidden;
     background: $color-divider;
+  }
+
+  &__cover-status {
+    position: absolute;
+    z-index: 3;
+    right: 8px;
+    bottom: 54px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: rgba(52, 199, 89, 0.9);
+    color: white;
+    font-size: 9px;
+    font-weight: 600;
+    pointer-events: none;
+
+    &--pending {
+      background: rgba(255, 149, 0, 0.92);
+    }
+
+    &--failed {
+      background: rgba(255, 59, 48, 0.92);
+    }
+
+    &--not-needed {
+      background: rgba(99, 99, 102, 0.92);
+    }
   }
 
   &__image {

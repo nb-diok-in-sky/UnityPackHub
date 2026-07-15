@@ -78,6 +78,9 @@ export const commands = {
   readAssetMetadata: (jsonPath: string, assetPath: string) =>
     invoke<AssetMetadata | null>('read_asset_metadata', { jsonPath, assetPath }),
 
+  readAssetMetadataTable: (jsonPath: string) =>
+    invoke<AssetMetadata[]>('read_asset_metadata_table', { jsonPath }),
+
   parseUnityPackage: (path: string) =>
     invoke<PackageInfo>('parse_unity_package', { path }),
 
@@ -126,10 +129,11 @@ export const commands = {
     invoke<boolean>('import_with_bridge', { packagePath, projectPath }),
 
   discoverUnityEditors: () => invoke<string[]>('discover_unity_editors'),
-  startModelPreviewJob: (unityEditorPath: string, models: ModelPreviewRequest[]) =>
-    invoke<number>('start_model_preview_job', { unityEditorPath, models }),
+  startModelPreviewJob: (unityEditorPath: string, models: ModelPreviewRequest[], shaderRulesPath = '') =>
+    invoke<number>('start_model_preview_job', { unityEditorPath, models, shaderRulesPath }),
   collectModelPreviewResults: () =>
     invoke<ModelPreviewResult[]>('collect_model_preview_results'),
+  cancelModelPreviewJob: () => invoke<boolean>('cancel_model_preview_job'),
   readModelPreviewImage: (path: string) =>
     invoke<string>('read_model_preview_image', { path }),
 }

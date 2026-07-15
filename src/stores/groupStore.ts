@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { AssetGroup } from '../types/asset'
+import type { AssetGroup, AssetKind } from '../types/asset'
 import { groupRepository } from '../services/repositories'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -12,7 +12,7 @@ export const useGroupStore = defineStore('groups', () => {
     groups.value = await groupRepository.getAll()
   }
 
-  async function create(name: string, icon: string): Promise<AssetGroup> {
+  async function create(name: string, icon: string, assetKind?: AssetKind): Promise<AssetGroup> {
     const maxOrder = groups.value.reduce((max, g) => Math.max(max, g.order), 0)
     const group: AssetGroup = {
       id: uuidv4(),
@@ -21,6 +21,8 @@ export const useGroupStore = defineStore('groups', () => {
       assetIds: [],
       order: maxOrder + 1,
       createdAt: Date.now(),
+      source: 'manual',
+      ...(assetKind ? { assetKind } : {}),
     }
     await groupRepository.create(group)
     groups.value.push(group)
@@ -68,6 +70,17 @@ export const useGroupStore = defineStore('groups', () => {
     await groupRepository.update(groupId, { assetIds: g.assetIds })
   }
 
+  async function removeAssetsFromAll(assetIds: string[]): Promise<void> {
+    const removed = new Set(assetIds)
+    const affected = groups.value.filter((group) =>
+      group.assetIds.some((assetId) => removed.has(assetId))
+    )
+    await Promise.all(affected.map(async (group) => {
+      group.assetIds = group.assetIds.filter((assetId) => !removed.has(assetId))
+      await groupRepository.update(group.id, { assetIds: group.assetIds })
+    }))
+  }
+
   function setActiveGroup(id: string | null): void {
     activeGroupId.value = id
   }
@@ -83,6 +96,7 @@ export const useGroupStore = defineStore('groups', () => {
     addAsset,
     removeAsset,
     addAssets,
+    removeAssetsFromAll,
     setActiveGroup,
   }
 })
