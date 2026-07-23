@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Asset, AssetKind, ModelCoverFilter, SortKey, SortOrder } from '../types/asset'
 import type { ISortStrategy } from '../types/strategies'
-import { assetRepository } from '../services/repositories'
+import { assetRepository, assetStoreLinkRepository } from '../services/repositories'
 import { scanService } from '../services/scanner'
 import { useSettingsStore } from './settingsStore'
 import { useTagStore } from './tagStore'
@@ -182,6 +182,7 @@ export const useAssetStore = defineStore('assets', () => {
   async function deleteAsset(id: string): Promise<void> {
     const thumbnailStore = useThumbnailStore()
     await thumbnailStore.remove(id)
+    await assetStoreLinkRepository.delete(id)
     await assetRepository.delete(id)
     await groupStore.removeAssetsFromAll([id])
     assets.value = assets.value.filter((a) => a.id !== id)

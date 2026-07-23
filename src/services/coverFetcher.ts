@@ -57,7 +57,6 @@ export async function parsePackageAssets(packagePath: string): Promise<PackageAs
       try {
         const cached = await db.showcaseCache.get(cacheKey)
         if (cached && cached.fileSize === fileSize) {
-          console.log('[Showcase] cache hit')
           return JSON.parse(cached.data) as PackageAssetList
         }
       } catch (cacheErr) {
@@ -65,9 +64,7 @@ export async function parsePackageAssets(packagePath: string): Promise<PackageAs
       }
     }
 
-    console.log('[Showcase] invoking parse_package_assets...')
     const result = await commands.parsePackageAssets(packagePath)
-    console.log('[Showcase] got', result.total_count, 'entries')
 
     if (fileSize > 0) {
       const cacheKey = `${packagePath}::v${SHOWCASE_CACHE_VERSION}`

@@ -26,12 +26,10 @@ export class DexieSettingsRepository implements ISettingsRepository {
       await this.ensureDir()
       const fileExists = await exists(SETTINGS_FILE, { baseDir: BaseDirectory.AppData })
       if (!fileExists) {
-        console.log('[Settings] no settings file yet, using defaults')
         return { ...DEFAULT_SETTINGS }
       }
       const text = await readTextFile(SETTINGS_FILE, { baseDir: BaseDirectory.AppData })
       const parsed = JSON.parse(text) as Partial<UserSettings>
-      console.log('[Settings] loaded, scanDirs:', parsed.scanDirectories?.length ?? 0)
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
@@ -57,11 +55,9 @@ export class DexieSettingsRepository implements ISettingsRepository {
       const plain = JSON.parse(JSON.stringify(settings)) as UserSettings
       plain.id = 'user'
       const json = JSON.stringify(plain, null, 2)
-      console.log('[Settings] saving, scanDirs:', plain.scanDirectories.length)
       await writeTextFile(SETTINGS_FILE, json, {
         baseDir: BaseDirectory.AppData,
       })
-      console.log('[Settings] saved OK')
     } catch (error) {
       console.error('[Settings] save FAILED:', error)
       throw error

@@ -13,6 +13,15 @@ export interface ThumbnailRecord {
   blob: Blob
 }
 
+export interface AssetStoreLinkRecord {
+  assetId: string
+  packageId: string
+  productName: string
+  productUrl: string
+  imageUrl: string
+  linkedAt: number
+}
+
 class AppDatabase extends Dexie {
   assets!: Table<Asset, string>
   tags!: Table<Tag, string>
@@ -21,6 +30,7 @@ class AppDatabase extends Dexie {
   showcaseCache!: Table<ShowcaseCache, string>
   thumbnails!: Table<ThumbnailRecord, string>
   unityAssetLinks!: Table<UnityAssetLink, string>
+  assetStoreLinks!: Table<AssetStoreLinkRecord, string>
 
   constructor() {
     super('UnityPackHub')
@@ -78,6 +88,17 @@ class AppDatabase extends Dexie {
       showcaseCache: 'filePath',
       thumbnails: 'id',
       unityAssetLinks: 'id, assetId, projectPath, unityGuid, unityPath, status',
+    })
+
+    this.version(7).stores({
+      assets: 'id, name, fileName, filePath, fileSize, isFavorite, assetKind, createdAt, updatedAt, lastUsedAt, *tagIds',
+      tags: 'id, label',
+      settings: 'id',
+      groups: 'id, name, order',
+      showcaseCache: 'filePath',
+      thumbnails: 'id',
+      unityAssetLinks: 'id, assetId, projectPath, unityGuid, unityPath, status',
+      assetStoreLinks: 'assetId, packageId, productName',
     })
   }
 }

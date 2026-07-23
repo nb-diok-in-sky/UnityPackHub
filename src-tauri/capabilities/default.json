@@ -25,10 +25,16 @@
     "shell:default",
     "shell:allow-execute",
     "shell:allow-open",
-    "http:default",
     "http:allow-fetch",
     "http:allow-fetch-cancel",
     "http:allow-fetch-read-body",
-    "http:allow-fetch-send"
+    "http:allow-fetch-send",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://**" },
+        { "url": "http://**" }
+      ]
+    }
   ]
 }
