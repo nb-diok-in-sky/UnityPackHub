@@ -1,6 +1,8 @@
 .DS_Store
 .thumbs.db
 node_modules
+/unity 资产管理软件备份/
+/unity 资产管理软件备份-*/
 
 # .env files
 .env*

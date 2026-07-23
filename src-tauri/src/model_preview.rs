@@ -1,10 +1,28 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, path::{Path, PathBuf}, process::Command, sync::Mutex};
+use std::{fs, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::Mutex};
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 const BATCH_SCRIPT: &str = include_str!("bridge/ModelPreviewBatch.cs");
 const RENDERER_SCRIPT: &str = include_str!("bridge/UnityPackHubPreviewRenderer.cs");
 const MATERIAL_SYSTEM_SCRIPT: &str = include_str!("bridge/PreviewMaterialSystem.cs");
-static ACTIVE_PROCESS: Mutex<Option<u32>> = Mutex::new(None);
+static ACTIVE_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+#[cfg(target_os = "windows")]
+const DETACHED_PROCESS: u32 = 0x00000008;
+#[cfg(target_os = "windows")]
+const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+fn background_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    command
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewRequest {
@@ -96,31 +114,41 @@ struct ProcessRegistry;
 impl ProcessRegistry {
     fn ensure_idle() -> Result<(), String> {
         let mut active = ACTIVE_PROCESS.lock().map_err(|_| "Preview process lock failed")?;
-        if active.map(process_is_running).unwrap_or(false) {
-            return Err("A model preview job is already running".into());
+        if let Some(child) = active.as_mut() {
+            match child.try_wait().map_err(|e| e.to_string())? {
+                None => return Err("A model preview job is already running".into()),
+                Some(_) => *active = None,
+            }
         }
-        *active = None;
         Ok(())
     }
 
-    fn register(pid: u32) -> Result<(), String> {
-        *ACTIVE_PROCESS.lock().map_err(|_| "Preview process lock failed")? = Some(pid);
+    fn register(child: Child) -> Result<(), String> {
+        *ACTIVE_PROCESS.lock().map_err(|_| "Preview process lock failed")? = Some(child);
         Ok(())
     }
 
     fn refresh() {
         if let Ok(mut active) = ACTIVE_PROCESS.lock() {
-            if active.map(|pid| !process_is_running(pid)).unwrap_or(false) { *active = None; }
+            let finished = active.as_mut()
+                .and_then(|child| child.try_wait().ok())
+                .flatten()
+                .is_some();
+            if finished { *active = None; }
         }
     }
 
     fn cancel() -> Result<bool, String> {
-        let mut active = ACTIVE_PROCESS.lock().map_err(|_| "Preview process lock failed")?;
-        let Some(pid) = *active else { return Ok(false); };
-        let status = Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"])
-            .status().map_err(|e| e.to_string())?;
-        *active = None;
-        Ok(status.success())
+        let child = ACTIVE_PROCESS.lock().map_err(|_| "Preview process lock failed")?.take();
+        let Some(mut child) = child else { return Ok(false); };
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(_) => Ok(false),
+            None => {
+                child.kill().map_err(|e| e.to_string())?;
+                let _ = child.wait();
+                Ok(true)
+            }
+        }
     }
 }
 
@@ -136,11 +164,6 @@ fn safe_stem(path: &Path) -> String {
     path.file_stem().and_then(|v| v.to_str()).unwrap_or("model").chars()
         .map(|c| if "<>:\"/\\|?*".contains(c) { '_' } else { c })
         .collect::<String>().trim_matches(&[' ', '.'][..]).chars().take(80).collect()
-}
-
-fn process_is_running(pid: u32) -> bool {
-    Command::new("tasklist").args(["/FI", &format!("PID eq {}", pid), "/NH"]).output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains(&pid.to_string())).unwrap_or(false)
 }
 
 #[tauri::command]
@@ -169,14 +192,13 @@ pub fn start_model_preview_job(
     if !editor.exists() { return Err("Unity Editor executable does not exist".into()); }
     let workspace = PreviewWorkspace::open()?;
     let (jobs_path, count) = workspace.create_jobs(models)?;
-    use std::os::windows::process::CommandExt;
-    let child = Command::new(editor).args([
+    let child = background_command(editor).args([
         "-batchmode", "-quit", "-projectPath", workspace.project.to_str().unwrap_or_default(),
         "-executeMethod", "ModelPreviewBatch.Run", "-uphJobs", jobs_path.to_str().unwrap_or_default(),
         "-uphShaderRules", shader_rules_path.as_str(), "-logFile",
         workspace.root.join("unity-render.log").to_str().unwrap_or_default(),
-    ]).creation_flags(0x08000000).spawn().map_err(|e| e.to_string())?;
-    ProcessRegistry::register(child.id())?;
+    ]).spawn().map_err(|e| e.to_string())?;
+    ProcessRegistry::register(child)?;
     Ok(count)
 }
 

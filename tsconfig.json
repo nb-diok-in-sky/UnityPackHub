@@ -1,4 +1,4 @@
 {
   "extends": "./.quasar/tsconfig.json",
-  "exclude": ["src-tauri/target", "dist", "node_modules"]
+  "exclude": ["src-tauri/target", "dist", "node_modules", "unity 资产管理软件备份", "unity 资产管理软件备份/**"]
 }

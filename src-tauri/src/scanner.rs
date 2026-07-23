@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use walkdir::WalkDir;
+use sha2::{Digest, Sha256};
+use std::io::Read;
 
 const MODEL_EXTENSIONS: &[&str] = &[
     "fbx", "prefab", "obj", "blend", "gltf", "glb", "dae", "3ds", "abc",
@@ -58,6 +60,35 @@ struct RawMetadataEntry {
     #[serde(rename = "sourceAsset")]
     source_asset: Option<String>,
     confidence: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileHashResult {
+    #[serde(rename = "filePath")]
+    pub file_path: String,
+    pub hash: String,
+    pub error: String,
+}
+
+#[tauri::command]
+pub fn hash_files(paths: Vec<String>) -> Vec<FileHashResult> {
+    paths.into_iter().map(|file_path| {
+        let result = (|| -> Result<String, String> {
+            let mut file = std::fs::File::open(&file_path).map_err(|e| e.to_string())?;
+            let mut hasher = Sha256::new();
+            let mut buffer = [0_u8; 1024 * 1024];
+            loop {
+                let count = file.read(&mut buffer).map_err(|e| e.to_string())?;
+                if count == 0 { break; }
+                hasher.update(&buffer[..count]);
+            }
+            Ok(format!("{:x}", hasher.finalize()))
+        })();
+        match result {
+            Ok(hash) => FileHashResult { file_path, hash, error: String::new() },
+            Err(error) => FileHashResult { file_path, hash: String::new(), error },
+        }
+    }).collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -149,6 +180,21 @@ fn bounds_to_text(bounds: Option<BoundsSize>) -> Option<String> {
     }
 }
 
+fn is_unity_project_internal(path: &Path) -> bool {
+    path.components().filter_map(|component| component.as_os_str().to_str())
+        .any(|component| matches!(component.to_ascii_lowercase().as_str(),
+            "library" | "packagecache" | "temp" | "obj" | "logs"))
+}
+
+fn is_embedded_project_package(path: &Path) -> bool {
+    path.ancestors().any(|ancestor| {
+        ancestor.file_name().and_then(|name| name.to_str())
+            .map(|name| name.eq_ignore_ascii_case("Assets"))
+            .unwrap_or(false)
+            && ancestor.parent().map(|project| project.join("ProjectSettings").is_dir()).unwrap_or(false)
+    })
+}
+
 #[tauri::command]
 pub fn scan_directories(dirs: Vec<String>) -> Result<Vec<ScannedFile>, String> {
     let mut results = Vec::new();
@@ -163,9 +209,11 @@ pub fn scan_directories(dirs: Vec<String>) -> Result<Vec<ScannedFile>, String> {
             if !path.is_file() {
                 continue;
             }
+            if is_unity_project_internal(path) { continue; }
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
             let (asset_kind, display_name) = if ext.eq_ignore_ascii_case("unitypackage") {
+                if is_embedded_project_package(path) { continue; }
                 let file_name = path
                     .file_name()
                     .and_then(|n| n.to_str())

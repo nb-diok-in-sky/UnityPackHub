@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import type { PackagePreviewRequest } from './packagePreviewFile'
 
 interface ScannedFile {
   name: string
@@ -67,6 +68,7 @@ interface PackageInfo {
 
 interface ModelPreviewRequest { assetId: string; sourcePath: string }
 interface ModelPreviewResult { assetId: string; imagePath: string; success: boolean; error: string }
+interface FileHashResult { filePath: string; hash: string; error: string }
 
 export const commands = {
   scanDirectories: (dirs: string[]) =>
@@ -104,7 +106,7 @@ export const commands = {
   debugPackagePathnames: (path: string) =>
     invoke<Record<string, string>>('debug_package_pathnames', { path }),
 
-  ensurePreviewDir: (packageName: string, prefabNames: string[]) =>
+  ensurePreviewDir: (packageName: string, prefabNames: PackagePreviewRequest[]) =>
     invoke<PreviewDirInfo>('ensure_preview_dir', { packageName, prefabNames }),
 
   clearAllPreviews: () =>
@@ -131,11 +133,17 @@ export const commands = {
   discoverUnityEditors: () => invoke<string[]>('discover_unity_editors'),
   startModelPreviewJob: (unityEditorPath: string, models: ModelPreviewRequest[], shaderRulesPath = '') =>
     invoke<number>('start_model_preview_job', { unityEditorPath, models, shaderRulesPath }),
+  requestUnityEditorAction: (projectPath: string, action: string, sourcePath: string) =>
+    invoke<string>('request_unity_editor_action', { projectPath, action, sourcePath }),
+  collectUnityEditorActionResult: (id: string) =>
+    invoke<string | null>('collect_unity_editor_action_result', { id }),
+  isUnityEditorBridgeReady: () => invoke<boolean>('is_unity_editor_bridge_ready'),
   collectModelPreviewResults: () =>
     invoke<ModelPreviewResult[]>('collect_model_preview_results'),
   cancelModelPreviewJob: () => invoke<boolean>('cancel_model_preview_job'),
   readModelPreviewImage: (path: string) =>
     invoke<string>('read_model_preview_image', { path }),
+  hashFiles: (paths: string[]) => invoke<FileHashResult[]>('hash_files', { paths }),
 }
 
 export type {
@@ -150,4 +158,5 @@ export type {
   AssetMetadata,
   ModelPreviewRequest,
   ModelPreviewResult,
+  FileHashResult,
 }

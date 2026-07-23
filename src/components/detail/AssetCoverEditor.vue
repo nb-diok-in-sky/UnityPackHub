@@ -112,7 +112,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 @use '../../styles/variables' as *;
-.asset-cover { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: $radius-card; overflow: hidden; background: $color-divider; cursor: pointer; border: 2px dashed transparent; transition: $transition-fast; }
+.asset-cover { position: relative; width: 100%; height: 194px; min-height: 194px; flex: 0 0 194px; border-radius: $radius-card; overflow: hidden; background: $color-divider; cursor: pointer; border: 2px dashed transparent; transition: $transition-fast; }
 .asset-cover--dragover { border-color: $apple-blue; background: var(--accent-soft); }
 .asset-cover__image { width: 100%; height: 100%; object-fit: cover; }
 .asset-cover__placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: $color-secondary; }

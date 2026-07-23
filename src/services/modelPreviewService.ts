@@ -45,15 +45,25 @@ async function applyResult(result: ModelPreviewResult, progress: ModelPreviewPro
   progress.completed++
 
   if (result.success) {
-    const dataUrl = await commands.readModelPreviewImage(result.imagePath)
-    await useThumbnailStore().setFromDataUrl(result.assetId, dataUrl)
-    await assetStore.updateAsset(result.assetId, {
-      thumbnailPath: 'db',
-      modelPreviewVersion: MODEL_PREVIEW_VERSION,
-      modelPreviewError: '',
-    })
-    progress.succeeded++
-    return
+    try {
+      const dataUrl = await commands.readModelPreviewImage(result.imagePath)
+      await useThumbnailStore().setFromDataUrl(result.assetId, dataUrl)
+      await assetStore.updateAsset(result.assetId, {
+        thumbnailPath: 'db',
+        modelPreviewVersion: MODEL_PREVIEW_VERSION,
+        modelPreviewError: '',
+      })
+      progress.succeeded++
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await assetStore.updateAsset(result.assetId, {
+        modelPreviewError: `Failed to save rendered preview: ${message}`,
+      })
+      progress.failed++
+      console.warn('[ModelPreview] failed to persist preview:', result.assetId, error)
+      return
+    }
   }
 
   const error = result.error || 'Render failed'

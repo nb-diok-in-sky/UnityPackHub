@@ -1,8 +1,14 @@
 use serde::Serialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use crate::{editor_actions, unity_paths::preview_root};
 
 const BRIDGE_SCRIPT: &str = include_str!("bridge/UnityPackHubBridge.cs");
+const EDITOR_ACTIONS_SCRIPT: &str = include_str!("bridge/UnityPackHubEditorActions.cs");
+const PREVIEW_PROTOCOL_SCRIPT: &str = include_str!("bridge/UnityPackHubPreviewProtocol.cs");
+const PREVIEW_MATCHER_SCRIPT: &str = include_str!("bridge/UnityPackHubPreviewMatcher.cs");
+const PREVIEW_MANIFEST_SCRIPT: &str = include_str!("bridge/UnityPackHubPreviewManifest.cs");
+const ASSET_RENDERER_SCRIPT: &str = include_str!("bridge/UnityPackHubAssetRenderer.cs");
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PreviewEntry {
@@ -22,11 +28,24 @@ pub struct PackagePreviews {
     pub preview_dir: String,
 }
 
-fn get_preview_root() -> PathBuf {
-    let appdata = std::env::var("APPDATA").unwrap_or_default();
-    PathBuf::from(appdata)
-        .join("com.unitypackhub.app")
-        .join("previews")
+#[tauri::command]
+pub fn request_unity_editor_action(
+    project_path: String,
+    action: String,
+    source_path: String,
+) -> Result<String, String> {
+    ensure_bridge_script(project_path.clone())?;
+    editor_actions::request(&project_path, &action, &source_path)
+}
+
+#[tauri::command]
+pub fn collect_unity_editor_action_result(id: String) -> Result<Option<String>, String> {
+    editor_actions::collect(&id)
+}
+
+#[tauri::command]
+pub fn is_unity_editor_bridge_ready() -> Result<bool, String> {
+    Ok(editor_actions::is_ready())
 }
 
 #[derive(Debug, Serialize)]
@@ -35,31 +54,51 @@ pub struct PreviewDirInfo {
     pub existing_files: Vec<String>,
 }
 
+fn preview_output_file(pathname: &str, filename: &str) -> String {
+    let mut hash = 2166136261_u32;
+    for byte in pathname.replace('\\', "/").to_lowercase().bytes() {
+        hash = (hash ^ byte as u32).wrapping_mul(16777619);
+    }
+    format!("{}--{:08x}.png", filename, hash)
+}
+
 #[tauri::command]
 pub fn ensure_preview_dir(
     package_name: String,
-    prefab_names: Vec<String>,
+    prefab_names: Vec<serde_json::Value>,
 ) -> Result<PreviewDirInfo, String> {
-    let dir = get_preview_root().join(&package_name);
+    let dir = preview_root().join(&package_name);
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create preview dir: {}", e))?;
 
     let prefabs_file = dir.join("prefabs.json");
     if !prefab_names.is_empty() {
-        let json = serde_json::to_string_pretty(&prefab_names).unwrap_or_default();
+        let requests: Vec<_> = prefab_names.into_iter().filter_map(|value| {
+            let pathname = value.get("pathname")?.as_str()?.to_string();
+            let filename = value.get("filename")?.as_str()?.to_string();
+            Some(serde_json::json!({
+                "pathname": pathname,
+                "filename": filename,
+                "outputFile": preview_output_file(&pathname, &filename),
+            }))
+        }).collect();
+        let json = serde_json::to_string_pretty(&requests).unwrap_or_default();
         let needs_write = if prefabs_file.exists() {
             fs::read_to_string(&prefabs_file).unwrap_or_default() != json
         } else {
             true
         };
         if needs_write {
-            let _ = fs::write(&prefabs_file, json);
+            fs::write(&prefabs_file, json)
+                .map_err(|e| format!("Failed to write preview requests: {}", e))?;
         }
 
-        let has_missing = prefab_names
+        let has_missing = requests
             .iter()
-            .any(|name| !dir.join(format!("{}.png", name)).exists());
+            .filter_map(|request| request.get("outputFile").and_then(|value| value.as_str()))
+            .any(|name| !dir.join(name).exists());
         if has_missing {
-            let _ = fs::write(dir.join("_trigger"), "");
+            fs::write(dir.join("_trigger"), "")
+                .map_err(|e| format!("Failed to trigger Unity preview generation: {}", e))?;
         }
     }
 
@@ -82,7 +121,7 @@ pub fn ensure_preview_dir(
 
 #[tauri::command]
 pub fn clear_all_previews() -> Result<u32, String> {
-    let root = get_preview_root();
+    let root = preview_root();
     if !root.exists() {
         return Ok(0);
     }
@@ -154,10 +193,19 @@ pub fn ensure_bridge_script(project_path: String) -> Result<bool, String> {
     }
 
     let script_path = editor_dir.join("UnityPackHubBridge.cs");
+    let editor_actions_path = editor_dir.join("UnityPackHubEditorActions.cs");
+    let support_scripts = [
+        (editor_dir.join("UnityPackHubPreviewProtocol.cs"), PREVIEW_PROTOCOL_SCRIPT),
+        (editor_dir.join("UnityPackHubPreviewMatcher.cs"), PREVIEW_MATCHER_SCRIPT),
+        (editor_dir.join("UnityPackHubPreviewManifest.cs"), PREVIEW_MANIFEST_SCRIPT),
+        (editor_dir.join("UnityPackHubAssetRenderer.cs"), ASSET_RENDERER_SCRIPT),
+    ];
 
-    if script_path.exists() {
+    if script_path.exists() && editor_actions_path.exists() && support_scripts.iter().all(|(path, _)| path.exists()) {
         let existing = fs::read_to_string(&script_path).unwrap_or_default();
-        if existing == BRIDGE_SCRIPT {
+        let existing_actions = fs::read_to_string(&editor_actions_path).unwrap_or_default();
+        let support_current = support_scripts.iter().all(|(path, content)| fs::read_to_string(path).unwrap_or_default() == *content);
+        if existing == BRIDGE_SCRIPT && existing_actions == EDITOR_ACTIONS_SCRIPT && support_current {
             return Ok(false);
         }
     }
@@ -165,6 +213,11 @@ pub fn ensure_bridge_script(project_path: String) -> Result<bool, String> {
     fs::create_dir_all(&editor_dir).map_err(|e| format!("Failed to create Editor dir: {}", e))?;
     fs::write(&script_path, BRIDGE_SCRIPT)
         .map_err(|e| format!("Failed to write bridge script: {}", e))?;
+    fs::write(&editor_actions_path, EDITOR_ACTIONS_SCRIPT)
+        .map_err(|e| format!("Failed to write editor actions script: {}", e))?;
+    for (path, content) in support_scripts {
+        fs::write(path, content).map_err(|e| format!("Failed to write preview support script: {}", e))?;
+    }
 
     // Clean up old bridge script if exists
     let old_dir = Path::new(&project_path)
@@ -180,7 +233,7 @@ pub fn ensure_bridge_script(project_path: String) -> Result<bool, String> {
 
 #[tauri::command]
 pub fn get_package_previews(package_name: String) -> Result<Option<PackagePreviews>, String> {
-    let preview_dir = get_preview_root().join(&package_name);
+    let preview_dir = preview_root().join(&package_name);
     let manifest_path = preview_dir.join("manifest.json");
 
     if !manifest_path.exists() {
@@ -261,15 +314,7 @@ pub fn import_with_bridge(package_path: String, project_path: String) -> Result<
         std::thread::sleep(std::time::Duration::from_secs(5));
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "", &package_path])
-            .creation_flags(0x08000000)
-            .spawn()
-            .map_err(|e| format!("Failed to open: {}", e))?;
-    }
+    crate::package_parser::open_with_default_app(package_path)?;
 
     Ok(newly_injected)
 }

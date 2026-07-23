@@ -28,6 +28,36 @@ export interface Tag {
   isSystem?: boolean
 }
 
+export type UnityLinkStatus = 'linked' | 'missing' | 'ambiguous' | 'unlinked'
+export type UnityProjectFilter = 'all' | UnityLinkStatus | 'in-scene' | 'duplicate'
+
+export interface UnityAssetLink {
+  id: string
+  assetId: string
+  projectPath: string
+  unityGuid: string
+  unityPath: string
+  matchMethod: 'path' | 'filename' | 'manual'
+  status: Exclude<UnityLinkStatus, 'unlinked'>
+  lastVerifiedAt: number
+}
+
+export interface UnityProjectAsset {
+  guid: string
+  path: string
+  fileName: string
+  assetType: string
+  dependencies: string[]
+  sceneUsageCount: number
+  referencedBy: string[]
+}
+
+export interface UnityAssetInspectionIssue {
+  id: string
+  severity: 'info' | 'warning' | 'error'
+  message: string
+}
+
 export interface AssetGroup {
   id: string
   name: string

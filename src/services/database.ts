@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Asset, Tag, UserSettings, AssetGroup } from '../types/asset'
+import type { Asset, Tag, UserSettings, AssetGroup, UnityAssetLink } from '../types/asset'
 
 export interface ShowcaseCache {
   filePath: string
@@ -20,6 +20,7 @@ class AppDatabase extends Dexie {
   groups!: Table<AssetGroup, string>
   showcaseCache!: Table<ShowcaseCache, string>
   thumbnails!: Table<ThumbnailRecord, string>
+  unityAssetLinks!: Table<UnityAssetLink, string>
 
   constructor() {
     super('UnityPackHub')
@@ -67,6 +68,16 @@ class AppDatabase extends Dexie {
           asset.assetKind = 'package'
         }
       })
+    })
+
+    this.version(6).stores({
+      assets: 'id, name, fileName, filePath, fileSize, isFavorite, assetKind, createdAt, updatedAt, lastUsedAt, *tagIds',
+      tags: 'id, label',
+      settings: 'id',
+      groups: 'id, name, order',
+      showcaseCache: 'filePath',
+      thumbnails: 'id',
+      unityAssetLinks: 'id, assetId, projectPath, unityGuid, unityPath, status',
     })
   }
 }

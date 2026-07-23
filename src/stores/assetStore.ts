@@ -13,6 +13,7 @@ import { DateSortStrategy } from '../services/strategies/DateSortStrategy'
 import { SizeSortStrategy } from '../services/strategies/SizeSortStrategy'
 import { UsageSortStrategy } from '../services/strategies/UsageSortStrategy'
 import { getModelCoverStatus, needsModelPreview } from '../services/modelPreviewService'
+import { useUnityProjectStore } from './unityProjectStore'
 
 const STRATEGY_MAP: Record<SortKey, ISortStrategy> = {
   name: new NameSortStrategy(),
@@ -33,6 +34,7 @@ export const useAssetStore = defineStore('assets', () => {
   const settingsStore = useSettingsStore()
   const tagStore = useTagStore()
   const groupStore = useGroupStore()
+  const unityProjectStore = useUnityProjectStore()
 
   const kindFiltered = computed<Asset[]>(() =>
     assets.value.filter((asset) => (asset.assetKind || 'package') === activeAssetKind.value)
@@ -47,10 +49,22 @@ export const useAssetStore = defineStore('assets', () => {
     )
   })
 
+  const projectFiltered = computed<Asset[]>(() => {
+    if (activeAssetKind.value !== 'model' || !unityProjectStore.isSynchronized || unityProjectStore.filter === 'all') {
+      return coverFiltered.value
+    }
+    return coverFiltered.value.filter((asset) => {
+      const state = unityProjectStore.getState(asset.id)
+      if (unityProjectStore.filter === 'in-scene') return (state?.projectAsset?.sceneUsageCount ?? 0) > 0
+      if (unityProjectStore.filter === 'duplicate') return (state?.duplicateCandidates.length ?? 0) > 1
+      return (state?.status ?? 'unlinked') === unityProjectStore.filter
+    })
+  })
+
   const favoriteFiltered = computed<Asset[]>(() =>
     showFavoritesOnly.value
-      ? coverFiltered.value.filter((a) => a.isFavorite)
-      : coverFiltered.value
+      ? projectFiltered.value.filter((a) => a.isFavorite)
+      : projectFiltered.value
   )
 
   const tagFiltered = computed<Asset[]>(() =>

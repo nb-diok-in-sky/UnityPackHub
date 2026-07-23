@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import type { Asset } from '../types/asset'
 import { useAssetStore } from '../stores/assetStore'
 import { useI18n } from '../services/i18n'
-import { importToUnity, openFileLocation, detectUnityProject } from '../services/unityImporter'
+import { importToUnity, openFileLocation, detectUnityProject, highlightInUnity } from '../services/unityImporter'
 import { formatBytes } from '../utils/formatBytes'
 import ShowcaseSection from './detail/ShowcaseSection.vue'
 import ModelShowcaseSection from './detail/ModelShowcaseSection.vue'
@@ -11,6 +11,7 @@ import UnityPreviewsSection from './detail/UnityPreviewsSection.vue'
 import AssetCoverEditor from './detail/AssetCoverEditor.vue'
 import AssetNotesEditor from './detail/AssetNotesEditor.vue'
 import AssetTagEditor from './detail/AssetTagEditor.vue'
+import UnityProjectAssetPanel from './detail/UnityProjectAssetPanel.vue'
 
 const props = defineProps<{
   asset: Asset | null
@@ -25,6 +26,7 @@ const { t } = useI18n()
 
 const isImporting = ref(false)
 const importStatus = ref('')
+const isLocatingInUnity = ref(false)
 
 const showcaseRef = ref<InstanceType<typeof ShowcaseSection> | null>(null)
 const modelShowcaseRef = ref<InstanceType<typeof ModelShowcaseSection> | null>(null)
@@ -81,6 +83,20 @@ async function handleImportToUnity(): Promise<void> {
 async function handleOpenFileLocation(): Promise<void> {
   if (!props.asset) return
   await openFileLocation(props.asset.filePath)
+}
+
+async function handleHighlightInUnity(): Promise<void> {
+  if (!props.asset || isLocatingInUnity.value) return
+  isLocatingInUnity.value = true
+  importStatus.value = ''
+  try {
+    const result = await highlightInUnity(props.asset.filePath)
+    importStatus.value = result.success
+      ? `Unity 已高亮：${result.assetPath ?? props.asset.fileName}`
+      : result.message
+  } finally {
+    isLocatingInUnity.value = false
+  }
 }
 
 function stripVersionSuffix(name: string): string {
@@ -140,6 +156,14 @@ async function handleSearchUnityStore(): Promise<void> {
               @click="handleOpenFileLocation"
             />
             <q-btn
+              v-if="isModel"
+              outline dense no-caps icon="my_location"
+              label="在 Unity 中定位" color="primary"
+              class="detail-panel__action-btn"
+              :loading="isLocatingInUnity"
+              @click="handleHighlightInUnity"
+            />
+            <q-btn
               outline dense no-caps icon="storefront"
               label="Unity 商店搜索"
               color="grey-7"
@@ -154,6 +178,7 @@ async function handleSearchUnityStore(): Promise<void> {
 
           <AssetNotesEditor :asset="asset" />
           <AssetTagEditor :asset="asset" />
+          <UnityProjectAssetPanel v-if="isModel" :asset="asset" />
 
           <!-- File Info -->
           <div class="detail-panel__section detail-panel__section--vertical">
