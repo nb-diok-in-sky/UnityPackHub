@@ -2,6 +2,7 @@ import type { Asset, AssetGroup } from '../types/asset'
 import { groupRepository } from './repositories'
 import { commands, type AssetMetadata } from './tauriCommands'
 import { v4 as uuidv4 } from 'uuid'
+import { normalizePath } from '../utils/pathIdentity'
 
 const CLASSIFICATION_SOURCE = 'classification' as const
 const DEFAULT_GROUP_ICON = 'category'
@@ -10,10 +11,6 @@ export interface ClassificationSyncResult {
   matchedAssetCount: number
   categoryCount: number
   unmatchedAssetCount: number
-}
-
-function normalizePath(path: string): string {
-  return path.replace(/\\/g, '/').toLocaleLowerCase()
 }
 
 function normalizeName(name: string): string {
@@ -52,7 +49,7 @@ export class ClassificationService {
     const pathIndex = new Map(
       categorizedEntries
         .filter((entry) => entry.path.trim().length > 0)
-        .map((entry) => [normalizePath(entry.path), entry]),
+        .map((entry) => [normalizePath(entry.path).toLocaleLowerCase(), entry]),
     )
     const nameIndex = buildNameIndex(categorizedEntries)
     const assetIdsByCategory = new Map<string, string[]>()
@@ -62,7 +59,7 @@ export class ClassificationService {
     for (const asset of assets) {
       if (asset.assetKind !== 'model') continue
       modelAssetCount += 1
-      const entry = pathIndex.get(normalizePath(asset.filePath))
+      const entry = pathIndex.get(normalizePath(asset.filePath).toLocaleLowerCase())
         ?? nameIndex.get(normalizeName(asset.fileName))
       if (!entry) continue
       const category = categoryOf(entry)

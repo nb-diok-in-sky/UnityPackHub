@@ -1,5 +1,5 @@
 import type { ICommand } from '../../types/commands'
-import { assetRepository } from '../repositories'
+import { loadAssets, updateAssets } from './batchAssetUpdates'
 
 export class BatchFavoriteCommand implements ICommand {
   private previousStates: { id: string; wasFavorite: boolean }[] = []
@@ -12,26 +12,26 @@ export class BatchFavoriteCommand implements ICommand {
 
   async execute(): Promise<void> {
     this.previousStates = []
-    for (const id of this.assetIds) {
-      const asset = await assetRepository.getById(id)
-      if (asset) {
-        this.previousStates.push({ id, wasFavorite: asset.isFavorite })
-        await assetRepository.update(id, {
+    const assets = await loadAssets(this.assetIds)
+    this.previousStates = assets.map(asset => ({ id: asset.id, wasFavorite: asset.isFavorite }))
+    await updateAssets(assets.map(asset => ({
+      id: asset.id,
+      data: {
           isFavorite: this.setFavorite,
           updatedAt: Date.now(),
-        })
-      }
-    }
+      },
+    })))
     await this.onComplete()
   }
 
   async undo(): Promise<void> {
-    for (const { id, wasFavorite } of this.previousStates) {
-      await assetRepository.update(id, {
+    await updateAssets(this.previousStates.map(({ id, wasFavorite }) => ({
+      id,
+      data: {
         isFavorite: wasFavorite,
         updatedAt: Date.now(),
-      })
-    }
+      },
+    })))
     await this.onComplete()
   }
 }

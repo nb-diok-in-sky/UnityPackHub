@@ -13,10 +13,6 @@ public class UnityPackHubBridge
         "com.unitypackhub.app", "previews");
     const int WAIT_FRAMES = 180;
 
-    static readonly HashSet<string> PrefabExtensions = new HashSet<string>(
-        StringComparer.OrdinalIgnoreCase) { ".prefab", ".fbx", ".obj", ".blend",
-        ".dae", ".3ds", ".gltf", ".glb", ".abc", ".usd", ".usda", ".usdc" };
-
     static string _importingPackage;
     static List<string> _prefabPaths;
     static HashSet<string> _assetsBeforeImport;
@@ -44,26 +40,9 @@ public class UnityPackHubBridge
         if (EditorApplication.timeSinceStartup - _lastPollTime < 2.0) return;
         _lastPollTime = EditorApplication.timeSinceStartup;
 
-        if (!Directory.Exists(PreviewRoot)) return;
-
-        foreach (var pkgDir in Directory.GetDirectories(PreviewRoot))
+        foreach (var pkgDir in UnityPackHubPreviewRequests.PackageDirectories(PreviewRoot))
         {
-            var triggerFile = Path.Combine(pkgDir, "_trigger");
-            if (!File.Exists(triggerFile)) continue;
-
-            File.Delete(triggerFile);
-
-            var listFile = Path.Combine(pkgDir, "prefabs.json");
-            if (!File.Exists(listFile)) continue;
-
-            UnityPackHubPreviewRequest[] expectedPrefabs;
-            try {
-                var json = File.ReadAllText(listFile);
-                expectedPrefabs = JsonUtility.FromJson<UnityPackHubPreviewRequestList>("{\"items\":" + json + "}").items ?? Array.Empty<UnityPackHubPreviewRequest>();
-            } catch { continue; }
-
-            var allPrefabs = AssetDatabase.GetAllAssetPaths()
-                .Where(p => p.StartsWith("Assets/") && PrefabExtensions.Contains(Path.GetExtension(p))).ToArray();
+            if (!UnityPackHubPreviewRequests.TryConsumeTrigger(pkgDir, out var expectedPrefabs)) continue;
 
             var pkgName = Path.GetFileName(pkgDir);
             _importingPackage = pkgName;
@@ -72,17 +51,14 @@ public class UnityPackHubBridge
             _skippedCount = 0;
 
             var toRender = new List<UnityPackHubPreviewRequest>();
-            foreach (var request in expectedPrefabs)
+            foreach (var request in UnityPackHubPreviewRequests.Match(expectedPrefabs))
             {
-                var assetPath = UnityPackHubPreviewMatcher.Match(request, allPrefabs);
-                if (string.IsNullOrEmpty(assetPath)) continue;
                 string pngPath = Path.Combine(pkgDir, request.outputFile);
                 if (File.Exists(pngPath)) {
                     _skippedCount++;
-                    _entries.Add(UnityPackHubPreviewManifest.Entry(assetPath, request.outputFile, "rendered"));
+                    _entries.Add(UnityPackHubPreviewManifest.Entry(request.assetPath, request.outputFile, "rendered"));
                     continue;
                 }
-                request.assetPath = assetPath;
                 toRender.Add(request);
             }
 
@@ -111,8 +87,7 @@ public class UnityPackHubBridge
         }
 
         var allPrefabs = new Dictionary<string, string>();
-        foreach (var p in AssetDatabase.GetAllAssetPaths()
-            .Where(p => p.StartsWith("Assets/") && PrefabExtensions.Contains(Path.GetExtension(p))))
+        foreach (var p in UnityPackHubPreviewRequests.RenderableAssetPaths())
         {
             var key = Path.GetFileName(p);
             if (!allPrefabs.ContainsKey(key))
@@ -188,9 +163,10 @@ public class UnityPackHubBridge
     static void OnCompleted(string packageName)
     {
         var before = _assetsBeforeImport ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var renderableAssets = new HashSet<string>(UnityPackHubPreviewRequests.RenderableAssetPaths(), StringComparer.OrdinalIgnoreCase);
         _prefabPaths = AssetDatabase.GetAllAssetPaths()
-            .Where(p => p.StartsWith("Assets/") && !before.Contains(p)
-                && PrefabExtensions.Contains(Path.GetExtension(p)))
+            .Where(p => p.StartsWith("Assets/") && !before.Contains(p))
+            .Where(renderableAssets.Contains)
             .ToList();
 
         if (_prefabPaths.Count == 0)

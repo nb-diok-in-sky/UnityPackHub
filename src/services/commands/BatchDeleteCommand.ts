@@ -1,6 +1,7 @@
 import type { ICommand } from '../../types/commands'
 import type { Asset } from '../../types/asset'
 import { assetRepository } from '../repositories'
+import { loadAssets } from './batchAssetUpdates'
 
 export class BatchDeleteCommand implements ICommand {
   private deletedAssets: Asset[] = []
@@ -11,13 +12,7 @@ export class BatchDeleteCommand implements ICommand {
   ) {}
 
   async execute(): Promise<void> {
-    this.deletedAssets = []
-    for (const id of this.assetIds) {
-      const asset = await assetRepository.getById(id)
-      if (asset) {
-        this.deletedAssets.push(asset)
-      }
-    }
+    this.deletedAssets = await loadAssets(this.assetIds)
     await assetRepository.bulkDelete(this.assetIds)
     await this.onComplete()
   }

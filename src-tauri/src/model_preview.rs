@@ -7,6 +7,7 @@ use std::os::windows::process::CommandExt;
 const BATCH_SCRIPT: &str = include_str!("bridge/ModelPreviewBatch.cs");
 const RENDERER_SCRIPT: &str = include_str!("bridge/UnityPackHubPreviewRenderer.cs");
 const MATERIAL_SYSTEM_SCRIPT: &str = include_str!("bridge/PreviewMaterialSystem.cs");
+const DEPENDENCY_COPIER_SCRIPT: &str = include_str!("bridge/ModelDependencyCopier.cs");
 static ACTIVE_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 
 #[cfg(target_os = "windows")]
@@ -84,6 +85,7 @@ impl PreviewWorkspace {
         fs::write(editor_dir.join("ModelPreviewBatch.cs"), BATCH_SCRIPT).map_err(|e| e.to_string())?;
         fs::write(editor_dir.join("UnityPackHubPreviewRenderer.cs"), RENDERER_SCRIPT).map_err(|e| e.to_string())?;
         fs::write(editor_dir.join("PreviewMaterialSystem.cs"), MATERIAL_SYSTEM_SCRIPT).map_err(|e| e.to_string())?;
+        fs::write(editor_dir.join("ModelDependencyCopier.cs"), DEPENDENCY_COPIER_SCRIPT).map_err(|e| e.to_string())?;
         fs::write(self.project.join("ProjectSettings").join("ProjectVersion.txt"), "m_EditorVersion: 2022.3.0f1\n")
             .map_err(|e| e.to_string())
     }

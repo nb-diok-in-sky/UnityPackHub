@@ -30,6 +30,10 @@ const size = computed(() => formatBytes(props.asset.fileSize));
 <style scoped lang="scss">
 @use "../../styles/variables" as *;
 .body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   padding: 12px 14px 14px;
 }
 .name {
@@ -48,18 +52,19 @@ const size = computed(() => formatBytes(props.asset.fileSize));
   font-size: $font-size-notes;
   line-height: 1.4;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 .footer {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
+  margin-top: auto;
 }
 .tags {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   overflow: hidden;
 }

@@ -32,6 +32,12 @@ export class DexieAssetRepository implements IAssetRepository {
     await db.assets.bulkDelete(ids)
   }
 
+  async bulkUpdate(updates: Array<{ id: string; data: Partial<Asset> }>): Promise<void> {
+    await db.transaction('rw', db.assets, async () => {
+      await Promise.all(updates.map(({ id, data }) => db.assets.update(id, data)))
+    })
+  }
+
   async findByTags(tagIds: string[]): Promise<Asset[]> {
     return db.assets
       .where('tagIds')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, watch } from "vue";
 import type { Asset } from "../../types/asset";
 import { useThumbnailStore } from "../../stores/thumbnailStore";
 import { useUnityProjectStore } from "../../stores/unityProjectStore";
@@ -37,6 +37,11 @@ const statusIcon = {
   failed: "error",
   "not-needed": "remove_circle_outline",
 };
+async function loadThumbnail(): Promise<void> {
+  if (props.asset.thumbnailPath === "db") await thumbnails.load(props.asset.id);
+}
+onMounted(loadThumbnail);
+watch(() => [props.asset.id, props.asset.thumbnailPath], loadThumbnail);
 </script>
 <template>
   <div class="cover">

@@ -77,6 +77,7 @@ async function remove(): Promise<void> {
 }
 
 onMounted(async () => {
+  if (props.asset.thumbnailPath === 'db') await thumbnails.load(props.asset.id)
   const { getCurrentWebview } = await import('@tauri-apps/api/webview')
   unlistenDragDrop = await getCurrentWebview().onDragDropEvent(async ({ payload }) => {
     if (payload.type === 'enter' || payload.type === 'over') isDragOver.value = true

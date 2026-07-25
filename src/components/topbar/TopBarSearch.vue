@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import { onUnmounted } from "vue";
+import { onUnmounted, ref, watch } from "vue";
 import { useAssetStore } from "../../stores/assetStore";
 import { useI18n } from "../../services/i18n";
 const assets = useAssetStore();
 const { t } = useI18n();
 let timer: ReturnType<typeof setTimeout> | null = null;
+const input = ref(assets.searchQuery);
 function update(value: string) {
+  input.value = value;
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => assets.setSearch(value), 200);
 }
+watch(() => assets.searchQuery, (value) => { input.value = value; });
 onUnmounted(() => {
   if (timer) clearTimeout(timer);
 });
 </script>
 <template>
   <q-input
-    :model-value="assets.searchQuery"
+    :model-value="input"
     dense
     outlined
     :placeholder="t.search"
@@ -23,7 +26,7 @@ onUnmounted(() => {
     @update:model-value="update($event as string)"
     ><template #prepend
       ><q-icon name="search" size="18px" color="grey-6" /></template
-    ><template v-if="assets.searchQuery" #append
+    ><template v-if="input" #append
       ><q-icon
         name="close"
         size="16px"

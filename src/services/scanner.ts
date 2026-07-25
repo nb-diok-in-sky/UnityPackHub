@@ -69,18 +69,25 @@ export class ScanService {
       })
     }))
 
+    const missingByIdentity = new Map<string, Asset[]>()
+    for (const existing of existingAssets) {
+      if (scannedPaths.has(existing.filePath)) continue
+      const key = fileIdentity(existing)
+      const matches = missingByIdentity.get(key)
+      if (matches) matches.push(existing)
+      else missingByIdentity.set(key, [existing])
+    }
+
     const movedAssets: Array<{ existing: Asset; scanned: Asset }> = []
     const orphanNew = newAssets.filter((a) => {
-      for (const existing of existingAssets) {
-        if (scannedPaths.has(existing.filePath)) continue
-        if (existing.fileName === a.fileName && existing.fileSize === a.fileSize) {
-          existingByPath.delete(existing.filePath)
-          scannedPaths.add(existing.filePath)
-          movedAssets.push({ existing, scanned: a })
-          return false
-        }
-      }
-      return true
+      const candidates = missingByIdentity.get(fileIdentity(a))
+      const existing = candidates?.pop()
+      if (!existing) return true
+      if (candidates?.length === 0) missingByIdentity.delete(fileIdentity(a))
+      existingByPath.delete(existing.filePath)
+      scannedPaths.add(existing.filePath)
+      movedAssets.push({ existing, scanned: a })
+      return false
     })
 
     await Promise.all(movedAssets.map(({ existing, scanned }) =>
@@ -119,6 +126,10 @@ export class ScanService {
       }))
     }
   }
+}
+
+function fileIdentity(asset: Pick<Asset, 'fileName' | 'fileSize'>): string {
+  return `${asset.fileSize}\0${asset.fileName}`
 }
 
 function isLikelyRenderableModel(filePath: string): boolean {

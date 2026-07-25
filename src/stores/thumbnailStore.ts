@@ -1,41 +1,75 @@
 import { defineStore } from 'pinia'
 import { reactive } from 'vue'
-import { db } from '../services/database'
+import { assetRepository, thumbnailRepository } from '../services/repositories'
+
+const MAX_CACHED_THUMBNAILS = 200
 
 export const useThumbnailStore = defineStore('thumbnails', () => {
   const urls = reactive(new Map<string, string>())
+  const loading = new Map<string, Promise<string | undefined>>()
 
   async function loadAll(): Promise<void> {
-    const records = await db.thumbnails.toArray()
-    for (const rec of records) {
-      if (urls.has(rec.id)) URL.revokeObjectURL(urls.get(rec.id)!)
-      urls.set(rec.id, URL.createObjectURL(rec.blob))
-    }
-
     await migrateDataUrls()
   }
 
+  async function load(assetId: string): Promise<string | undefined> {
+    const cached = urls.get(assetId)
+    if (cached) {
+      touch(assetId, cached)
+      return cached
+    }
+
+    const pending = loading.get(assetId)
+    if (pending) return pending
+
+    const request = thumbnailRepository.get(assetId).then((record) => {
+      if (!record) return undefined
+      const url = URL.createObjectURL(record.blob)
+      urls.set(assetId, url)
+      evictOverflow()
+      return url
+    }).finally(() => loading.delete(assetId))
+    loading.set(assetId, request)
+    return request
+  }
+
   async function migrateDataUrls(): Promise<void> {
-    const assets = await db.assets.toArray()
+    const assets = await assetRepository.getAll()
+    const migrations: Array<Promise<void>> = []
     for (const asset of assets) {
       if (asset.thumbnailPath && asset.thumbnailPath.startsWith('data:')) {
-        try {
+        migrations.push((async () => {
+          try {
           const resp = await fetch(asset.thumbnailPath)
           const blob = await resp.blob()
-          await db.thumbnails.put({ id: asset.id, blob })
-          await db.assets.update(asset.id, { thumbnailPath: 'db' })
-          urls.set(asset.id, URL.createObjectURL(blob))
-        } catch {
-          urls.set(asset.id, asset.thumbnailPath)
-        }
-      } else if (asset.thumbnailPath === 'db' && !urls.has(asset.id)) {
-        await db.assets.update(asset.id, { thumbnailPath: '' })
+          await thumbnailRepository.save(asset.id, blob)
+          await assetRepository.update(asset.id, { thumbnailPath: 'db' })
+          } catch {
+            // Keep the legacy data URL when migration cannot be completed.
+          }
+        })())
       }
     }
+    await Promise.all(migrations)
   }
 
   function getUrl(assetId: string): string | undefined {
     return urls.get(assetId)
+  }
+
+  function touch(assetId: string, url: string): void {
+    urls.delete(assetId)
+    urls.set(assetId, url)
+  }
+
+  function evictOverflow(): void {
+    while (urls.size > MAX_CACHED_THUMBNAILS) {
+      const oldestId = urls.keys().next().value as string | undefined
+      if (!oldestId) return
+      const url = urls.get(oldestId)
+      if (url) URL.revokeObjectURL(url)
+      urls.delete(oldestId)
+    }
   }
 
   async function setFromDataUrl(assetId: string, dataUrl: string): Promise<void> {
@@ -45,13 +79,13 @@ export const useThumbnailStore = defineStore('thumbnails', () => {
   }
 
   async function setFromBlob(assetId: string, blob: Blob): Promise<void> {
-    await db.thumbnails.put({ id: assetId, blob })
+    await thumbnailRepository.save(assetId, blob)
     if (urls.has(assetId)) URL.revokeObjectURL(urls.get(assetId)!)
     urls.set(assetId, URL.createObjectURL(blob))
   }
 
   async function remove(assetId: string): Promise<void> {
-    await db.thumbnails.delete(assetId)
+    await thumbnailRepository.delete(assetId)
     if (urls.has(assetId)) {
       URL.revokeObjectURL(urls.get(assetId)!)
       urls.delete(assetId)
@@ -59,7 +93,7 @@ export const useThumbnailStore = defineStore('thumbnails', () => {
   }
 
   async function removeMany(assetIds: string[]): Promise<void> {
-    await db.thumbnails.bulkDelete(assetIds)
+    await thumbnailRepository.deleteMany(assetIds)
     for (const id of assetIds) {
       if (urls.has(id)) {
         URL.revokeObjectURL(urls.get(id)!)
@@ -68,5 +102,5 @@ export const useThumbnailStore = defineStore('thumbnails', () => {
     }
   }
 
-  return { urls, loadAll, getUrl, setFromDataUrl, setFromBlob, remove, removeMany }
+  return { urls, loadAll, load, getUrl, setFromDataUrl, setFromBlob, remove, removeMany }
 })

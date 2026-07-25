@@ -8,6 +8,7 @@ export interface IAssetRepository {
   delete(id: string): Promise<void>
   bulkCreate(assets: Asset[]): Promise<void>
   bulkDelete(ids: string[]): Promise<void>
+  bulkUpdate(updates: Array<{ id: string; data: Partial<Asset> }>): Promise<void>
   findByTags(tagIds: string[]): Promise<Asset[]>
   search(keyword: string): Promise<Asset[]>
   getByFilePath(filePath: string): Promise<Asset | undefined>

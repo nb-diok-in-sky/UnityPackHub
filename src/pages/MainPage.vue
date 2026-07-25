@@ -72,10 +72,6 @@ onMounted(async () => {
   await groupStore.load()
   await assetStore.load()
   await thumbnailStore.loadAll()
-
-  if (settingsStore.settings.scanDirectories.length > 0) {
-    await assetStore.scan()
-  }
 })
 
 onUnmounted(() => {

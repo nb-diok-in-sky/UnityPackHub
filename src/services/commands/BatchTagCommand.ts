@@ -1,7 +1,9 @@
 import type { ICommand } from '../../types/commands'
-import { assetRepository } from '../repositories'
+import { loadAssets, updateAssets } from './batchAssetUpdates'
 
 export class BatchTagCommand implements ICommand {
+  private affectedAssetIds: string[] = []
+
   constructor(
     private readonly assetIds: string[],
     private readonly tagId: string,
@@ -9,28 +11,28 @@ export class BatchTagCommand implements ICommand {
   ) {}
 
   async execute(): Promise<void> {
-    for (const id of this.assetIds) {
-      const asset = await assetRepository.getById(id)
-      if (asset && !asset.tagIds.includes(this.tagId)) {
-        await assetRepository.update(id, {
+    const assets = await loadAssets(this.assetIds)
+    const affectedAssets = assets.filter(asset => !asset.tagIds.includes(this.tagId))
+    this.affectedAssetIds = affectedAssets.map(asset => asset.id)
+    await updateAssets(affectedAssets.map(asset => ({
+      id: asset.id,
+      data: {
           tagIds: [...asset.tagIds, this.tagId],
           updatedAt: Date.now(),
-        })
-      }
-    }
+      },
+    })))
     await this.onComplete()
   }
 
   async undo(): Promise<void> {
-    for (const id of this.assetIds) {
-      const asset = await assetRepository.getById(id)
-      if (asset) {
-        await assetRepository.update(id, {
+    const assets = await loadAssets(this.affectedAssetIds)
+    await updateAssets(assets.map(asset => ({
+      id: asset.id,
+      data: {
           tagIds: asset.tagIds.filter((t) => t !== this.tagId),
           updatedAt: Date.now(),
-        })
-      }
-    }
+      },
+    })))
     await this.onComplete()
   }
 }

@@ -8,7 +8,7 @@ import { importToUnity, openFileLocation } from "../services/unityImporter";
 import AssetCardCover from "./asset/AssetCardCover.vue";
 import AssetCardMenu from "./asset/AssetCardMenu.vue";
 import AssetCardBody from "./asset/AssetCardBody.vue";
-const props = defineProps<{ asset: Asset; width: number }>();
+const props = defineProps<{ asset: Asset; width: number; height: number }>();
 const emit = defineEmits<{
   click: [asset: Asset];
   "update:favorite": [id: string];
@@ -52,7 +52,7 @@ function favorite(event?: MouseEvent) {
       'card--selected': selected,
       'card--painting': !!assets.paintingTagId,
     }"
-    :style="{ width: `${width}px` }"
+    :style="{ width: `${width}px`, height: `${height}px` }"
     @click="click"
     @dblclick.prevent="importToUnity(asset.filePath)"
   >
@@ -69,6 +69,8 @@ function favorite(event?: MouseEvent) {
 <style scoped lang="scss">
 @use "../styles/variables" as *;
 .card {
+  display: flex;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
   border-radius: $radius-card;

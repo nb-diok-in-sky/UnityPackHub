@@ -1,26 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Asset, AssetKind, ModelCoverFilter, SortKey, SortOrder } from '../types/asset'
-import type { ISortStrategy } from '../types/strategies'
+import type { Asset, AssetKind, ModelCoverFilter } from '../types/asset'
 import { assetRepository, assetStoreLinkRepository } from '../services/repositories'
 import { scanService } from '../services/scanner'
 import { useSettingsStore } from './settingsStore'
 import { useTagStore } from './tagStore'
 import { useGroupStore } from './groupStore'
 import { useThumbnailStore } from './thumbnailStore'
-import { NameSortStrategy } from '../services/strategies/NameSortStrategy'
-import { DateSortStrategy } from '../services/strategies/DateSortStrategy'
-import { SizeSortStrategy } from '../services/strategies/SizeSortStrategy'
-import { UsageSortStrategy } from '../services/strategies/UsageSortStrategy'
-import { getModelCoverStatus, needsModelPreview } from '../services/modelPreviewService'
-import { useUnityProjectStore } from './unityProjectStore'
-
-const STRATEGY_MAP: Record<SortKey, ISortStrategy> = {
-  name: new NameSortStrategy(),
-  createdAt: new DateSortStrategy(),
-  fileSize: new SizeSortStrategy(),
-  lastUsedAt: new UsageSortStrategy(),
-}
+import { getModelCoverStatus } from '../services/modelPreviewService'
+import { useAssetFiltering } from '../composables/useAssetFiltering'
 
 export const useAssetStore = defineStore('assets', () => {
   const assets = ref<Asset[]>([])
@@ -34,114 +22,53 @@ export const useAssetStore = defineStore('assets', () => {
   const settingsStore = useSettingsStore()
   const tagStore = useTagStore()
   const groupStore = useGroupStore()
-  const unityProjectStore = useUnityProjectStore()
-
-  const kindFiltered = computed<Asset[]>(() =>
-    assets.value.filter((asset) => (asset.assetKind || 'package') === activeAssetKind.value)
-  )
-
-  const coverFiltered = computed<Asset[]>(() => {
-    if (activeAssetKind.value !== 'model' || modelCoverFilter.value === 'all') {
-      return kindFiltered.value
-    }
-    return kindFiltered.value.filter((asset) =>
-      getModelCoverStatus(asset) === modelCoverFilter.value
-    )
+  const { kindAssets, filteredAssets } = useAssetFiltering(assets, {
+    searchQuery,
+    showFavoritesOnly,
+    activeAssetKind,
+    modelCoverFilter,
   })
 
-  const projectFiltered = computed<Asset[]>(() => {
-    if (activeAssetKind.value !== 'model' || !unityProjectStore.isSynchronized || unityProjectStore.filter === 'all') {
-      return coverFiltered.value
-    }
-    return coverFiltered.value.filter((asset) => {
-      const state = unityProjectStore.getState(asset.id)
-      if (unityProjectStore.filter === 'in-scene') return (state?.projectAsset?.sceneUsageCount ?? 0) > 0
-      if (unityProjectStore.filter === 'duplicate') return (state?.duplicateCandidates.length ?? 0) > 1
-      return (state?.status ?? 'unlinked') === unityProjectStore.filter
-    })
-  })
-
-  const favoriteFiltered = computed<Asset[]>(() =>
-    showFavoritesOnly.value
-      ? projectFiltered.value.filter((a) => a.isFavorite)
-      : projectFiltered.value
-  )
-
-  const tagFiltered = computed<Asset[]>(() =>
-    tagStore.activeTagId
-      ? favoriteFiltered.value.filter((a) => a.tagIds.includes(tagStore.activeTagId!))
-      : favoriteFiltered.value
-  )
-
-  const groupFiltered = computed<Asset[]>(() => {
-    if (!groupStore.activeGroupId) return tagFiltered.value
-    const group = groupStore.groups.find((g) => g.id === groupStore.activeGroupId)
-    if (!group) return tagFiltered.value
-    const idSet = new Set(group.assetIds)
-    return tagFiltered.value.filter((a) => idSet.has(a.id))
-  })
-
-  const searchFiltered = computed<Asset[]>(() => {
-    const query = searchQuery.value.trim().toLowerCase()
-    if (!query) return groupFiltered.value
-    return groupFiltered.value.filter((a) => {
-      if (a.name.toLowerCase().includes(query)) return true
-      if (a.notes.toLowerCase().includes(query)) return true
-      if (a.fileName.toLowerCase().includes(query)) return true
-      for (const tagId of a.tagIds) {
-        const tag = tagStore.getTagById(tagId)
-        if (tag && tag.label.toLowerCase().includes(query)) return true
-      }
-      return false
-    })
-  })
-
-  const filteredAssets = computed<Asset[]>(() => {
-    const strategy = STRATEGY_MAP[settingsStore.settings.sortBy]
-    const items = [...searchFiltered.value]
-    const order = settingsStore.settings.sortOrder
-
-    items.sort((a, b) => {
-      const favDiff = (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0)
-      if (favDiff !== 0) return favDiff
-      return strategy ? strategy.compare(a, b, order) : 0
-    })
-
-    return items
-  })
-
-  const totalCount = computed(() => kindFiltered.value.length)
+  const totalCount = computed(() => kindAssets.value.length)
   const libraryTotalCount = computed(() => assets.value.length)
-  const packageCount = computed(() =>
-    assets.value.filter((asset) => (asset.assetKind || 'package') === 'package').length
-  )
-  const modelCount = computed(() =>
-    assets.value.filter((asset) => asset.assetKind === 'model').length
-  )
-  const pendingModelCoverCount = computed(() =>
-    assets.value.filter(needsModelPreview).length
-  )
-  const completedModelCoverCount = computed(() =>
-    assets.value.filter((asset) =>
-      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'completed'
-    ).length
-  )
-  const ineligibleModelCoverCount = computed(() =>
-    assets.value.filter((asset) =>
-      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'not-needed'
-    ).length
-  )
-  const failedModelCoverCount = computed(() =>
-    assets.value.filter((asset) =>
-      asset.assetKind === 'model' && getModelCoverStatus(asset) === 'failed'
-    ).length
-  )
+  const assetStatistics = computed(() => {
+    const statistics = {
+      packageCount: 0,
+      modelCount: 0,
+      pendingModelCoverCount: 0,
+      completedModelCoverCount: 0,
+      ineligibleModelCoverCount: 0,
+      failedModelCoverCount: 0,
+    }
+
+    for (const asset of assets.value) {
+      if ((asset.assetKind || 'package') === 'package') {
+        statistics.packageCount++
+        continue
+      }
+
+      statistics.modelCount++
+      const status = getModelCoverStatus(asset)
+      if (status === 'pending') statistics.pendingModelCoverCount++
+      else if (status === 'completed') statistics.completedModelCoverCount++
+      else if (status === 'not-needed') statistics.ineligibleModelCoverCount++
+      else statistics.failedModelCoverCount++
+    }
+
+    return statistics
+  })
+  const packageCount = computed(() => assetStatistics.value.packageCount)
+  const modelCount = computed(() => assetStatistics.value.modelCount)
+  const pendingModelCoverCount = computed(() => assetStatistics.value.pendingModelCoverCount)
+  const completedModelCoverCount = computed(() => assetStatistics.value.completedModelCoverCount)
+  const ineligibleModelCoverCount = computed(() => assetStatistics.value.ineligibleModelCoverCount)
+  const failedModelCoverCount = computed(() => assetStatistics.value.failedModelCoverCount)
   const filteredCount = computed(() => filteredAssets.value.length)
   const totalSize = computed(() =>
-    kindFiltered.value.reduce((sum, a) => sum + a.fileSize, 0)
+    kindAssets.value.reduce((sum, a) => sum + a.fileSize, 0)
   )
   const favoriteCount = computed(() =>
-    kindFiltered.value.filter((a) => a.isFavorite).length
+    kindAssets.value.filter((a) => a.isFavorite).length
   )
   const isMultiSelect = computed(() => selectedIds.value.size > 0)
 
