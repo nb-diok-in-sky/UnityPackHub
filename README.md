@@ -18,7 +18,7 @@ Unity 离线资产管理工具 —— 不打开 Unity，直接浏览和管理你
 项目里已经放好了打包好的安装程序，clone 下来直接装：
 
 ```
-release/UnityPackHub_0.1.0_x64-setup.exe
+release/UnityPackHub_0.5.0_x64-setup.exe
 ```
 
 双击运行，安装完打开即用。安装包只有 ~5MB。
@@ -72,7 +72,9 @@ release/UnityPackHub_0.1.0_x64-setup.exe
 4. 脚本在后台自动渲染缺少预览的 Prefab
 5. 下次打开橱窗，截图就有了
 
-> 预览图存在 `%APPDATA%/com.unitypackhub.app/previews/`，不会污染你的 Unity 项目。
+> 预览图存在 `%APPDATA%/com.unitypackhub.app/previews/`，不会污染你的 Unity 项目。同时打开多个 Unity 编辑器也没问题，哪个项目里有对应资源，就由哪个编辑器渲染。
+>
+> 注意：文件名含中文的 `.unitypackage` 在部分磁盘上会被 Unity 自身报 "Couldn't decompress package"（Unity 解压时的短路径限制），遇到时把包改成英文文件名即可。
 
 ---
 
@@ -112,22 +114,29 @@ npx tauri dev
 
 ```
 src/
-├── components/          # 界面组件
-│   └── detail/          # 资产详情子组件
-├── pages/               # 页面
-├── stores/              # Pinia 状态管理
-├── services/
-│   ├── repositories/    # 数据持久化
-│   ├── strategies/      # 排序策略
-│   └── commands/        # 撤销重做
-├── types/               # 类型定义
-└── styles/              # 样式变量
+├── pages/ components/   # 视图
+├── composables/         # 视图逻辑
+├── stores/              # Pinia 状态
+├── services/            # 用例（扫描、导入、预览、封面）
+├── data/                # IndexedDB 与 settings.json
+├── platform/            # Tauri 命令与插件（前端唯一的 Tauri 入口）
+├── domain/              # 纯逻辑（带单元测试）
+└── i18n/ ui/ types/
+tests/                   # vitest：domain、数据库迁移、分层检查
 
 src-tauri/src/
-├── bridge/              # Unity C# 桥接脚本
-├── package_parser.rs    # .unitypackage 解析
-├── scanner.rs           # 文件扫描
-└── unity_bridge.rs      # 预览截图桥接
+├── library/             # 扫描目录、关联文件、元数据表、哈希
+├── package/             # .unitypackage 解析
+├── unity/               # 打开的 Unity 编辑器与无头预览工程
+├── protocol.rs          # 与 Unity 桥接脚本的文件协议
+└── bridge/              # 部署到 Unity 的 C# 脚本
+```
+
+分层规则见 [CODING_STANDARDS.md](CODING_STANDARDS.md)。检查命令：
+
+```bash
+npm test && npm run typecheck && cd src-tauri && cargo test
+npm run check:bridge   # 需要 .NET SDK 和一个已安装的 Unity 编辑器
 ```
 
 </details>

@@ -6,34 +6,54 @@
 
 ---
 
-## 1 目录结构
+## 1 目录结构与分层
 
 ```
 src/
-├── components/          # Vue 组件（PascalCase 命名）
-├── pages/               # 页面级组件
-├── layouts/             # 布局组件
-├── stores/              # Pinia 状态管理
-├── services/            # 业务逻辑层
-│   ├── repositories/    # 数据持久化（Repository 模式）
-│   ├── strategies/      # 排序策略（Strategy 模式）
-│   └── commands/        # 可撤销命令（Command 模式）
-├── composables/         # 可复用组合式函数（useXxx）
-├── types/               # TypeScript 类型定义
-├── utils/               # 纯函数工具（无副作用）
-├── constants/           # 应用常量、枚举映射
-├── styles/              # 全局 SCSS 变量与混入
-└── boot/                # 应用启动钩子
+├── pages/ components/   # 视图：只做展示和把用户操作转给 composable / store
+├── composables/         # 视图逻辑（useXxx）：一个面板/对话框的状态与操作
+├── stores/              # Pinia：应用状态 + 编排 service 调用
+├── services/            # 用例：组合 data + platform + domain，不依赖 Vue / Pinia
+├── data/                # 持久化：Dexie 表、迁移、settings.json
+├── platform/            # 唯一允许 import @tauri-apps/* 的地方（Rust 命令 + 插件）
+├── domain/              # 纯逻辑：扫描对账、筛选排序、Unity 关联、撤销变更集……
+├── types/               # 纯类型
+├── i18n/                # 文案（zh-CN / en-US）
+├── ui/                  # 通知与确认框（唯一允许 import quasar 插件的地方）
+├── utils/ constants/ styles/ boot/
+tests/                   # vitest：domain 单测、数据库迁移、架构检查
+src-tauri/src/
+├── library/ package/ unity/ system.rs   # Tauri 命令，按领域分模块
+├── protocol.rs paths.rs files.rs        # 与 Unity 的文件协议、磁盘位置、文件工具
+└── bridge/                              # 部署到 Unity 的 C# 脚本
 ```
+
+### 依赖方向
+
+只允许从上往下依赖，`import type` 不受限制：
+
+| 层 | 可以依赖 |
+|----|----------|
+| components / pages | composables、stores、services、domain、i18n、ui |
+| composables | stores、services、domain、i18n、ui |
+| stores | 其他 store、services、domain、i18n、ui |
+| services | data、platform、domain |
+| data | platform、domain |
+| platform | 仅 `@tauri-apps/*` |
+| domain / types | 仅 domain / types，不依赖 Vue |
+
+`tests/architecture.test.ts` 会检查这张表，越层导入会直接让 `npm test` 失败。遇到失败时应当把调用挪到正确的层，而不是放宽规则。
 
 ### 文件归属原则
 
 | 问自己 | 放在 |
 |--------|------|
-| 它是一个纯函数，不依赖 Vue 响应式？ | `utils/` |
-| 它用了 `ref`/`computed`/生命周期钩子？ | `composables/` |
-| 它执行 I/O（文件、数据库、网络）？ | `services/` |
-| 它是一个不变的映射表或配置？ | `constants/` |
+| 纯计算，不做 I/O，不用 Vue？ | `domain/` |
+| 调用 Rust 命令或 Tauri 插件？ | `platform/` |
+| 读写 IndexedDB 或 settings.json？ | `data/` |
+| 一个完整用例（扫描、导入、渲染封面）？ | `services/` |
+| 多个组件共享的状态？ | `stores/` |
+| 某个面板自己的状态与交互？ | `composables/` |
 
 ---
 
@@ -236,82 +256,41 @@ export const useAssetStore = defineStore('assets', () => {
 - Store 不直接操作 DOM、路由或浏览器 API
 - 异步操作包裹 `try/finally`，确保 loading 状态复位
 - Store 间依赖通过 `useXxxStore()` 在 store 内部调用，不循环依赖
-- 响应式对象写入 IndexedDB 前必须 `JSON.parse(JSON.stringify(obj))` 去除 Proxy
+- Store 只通过 services 做 I/O，不直接访问 Dexie 或 Tauri
 
 ### 6.3 计算属性拆分原则
 
-当单个 `computed` 执行了多种职责（过滤 + 排序 + 置顶）时，拆分为管道：
+过滤、排序这类纯计算放进 `domain/`（例如 `domain/assetQuery.ts`），store 中的 `computed` 只负责把状态传进去：
 
 ```typescript
-// 推荐：分步计算
-const favoriteFiltered = computed(() =>
-  showFavoritesOnly.value ? assets.value.filter(a => a.isFavorite) : assets.value
-)
-const tagFiltered = computed(() =>
-  activeTagId.value
-    ? favoriteFiltered.value.filter(a => a.tagIds.includes(activeTagId.value!))
-    : favoriteFiltered.value
-)
-const sorted = computed(() =>
-  strategy.value.sort([...tagFiltered.value], sortOrder.value)
-)
+const visibleAssets = computed(() => queryAssets(assets.assets, {
+  kind: kind.value, search: search.value, favoritesOnly: favoritesOnly.value, /* ... */
+}, (asset) => searchIndex.value.get(asset.id) ?? ''))
 ```
 
 ---
 
-## 7 服务层
+## 7 服务层与关键机制
 
-### 7.1 Repository 模式
+### 7.1 持久化
 
-```
-services/repositories/
-├── IAssetRepository.ts      # 接口定义
-├── DexieAssetRepository.ts  # Dexie 实现
-└── index.ts                 # 导出实例（DI 入口）
-```
+- Dexie 表只在 `data/` 中访问（`data/repositories.ts` 提供按表的访问对象）
+- Schema 变更时新增 `db.version(n)`，并在 `upgrade` 中迁移旧数据；旧版本声明保持原样
+- 迁移逻辑中的纯转换放在 `domain/legacyRecords.ts`，由 `tests/databaseMigration.test.ts` 覆盖
 
-- 每个数据实体一个 Repository 接口
-- 接口定义在 `I*.ts`，实现在具体文件中
-- **消费方通过接口编程**，不直接 import 实现类：
+### 7.2 撤销 / 重做
 
-```typescript
-// Good — 通过 index.ts 导出的实例
-import { assetRepository } from '../services/repositories'
+- 用户对资产的编辑（标签、收藏、备注）一律走 `assetStore.edit(ids, change)`，删除走 `assetStore.remove(ids)`
+- `domain/assetChanges.ts` 只记录真正发生变化的资产和字段的前后值，所以撤销能精确还原
+- 自动产生的变化（封面、渲染状态、使用时间、扫描结果）走 `assetStore.patch`，不进入历史
+- 扫描会重建资产，所以扫描后会清空历史
 
-// Bad — 直接依赖具体实现
-import { assetRepository } from '../services/repositories/DexieAssetRepository'
-```
+### 7.3 与 Unity 的文件协议
 
-### 7.2 Command 模式
-
-```typescript
-interface ICommand {
-  execute(): Promise<void>
-  undo(): Promise<void>
-}
-```
-
-- 所有可撤销的用户操作封装为 Command
-- 命名规则：`[Scope][Action]Command`（如 `BatchTagCommand`、`BatchDeleteCommand`）
-- 通过 `commandManager.execute(cmd)` 统一调度
-
-### 7.3 Strategy 模式
-
-```typescript
-interface ISortStrategy {
-  readonly key: string
-  sort(assets: Asset[], order: SortOrder): Asset[]
-}
-```
-
-- 每种算法一个 Strategy 类
-- 通过注册表 `STRATEGY_MAP` 按 key 查找，不使用 `if/else` 链
-
-### 7.4 EventBus
-
-- 所有事件类型在 `types/events.ts` 中声明
-- 事件名使用 `domain:action` 格式：`scan:complete`、`tag:deleted`
-- 组件中的监听必须在 `onUnmounted` 中取消
+- app 与 Unity 通过 `%APPDATA%/com.unitypackhub.app` 下的 JSON 文件通信
+- 格式只在 `src-tauri/src/protocol.rs` 和 `bridge/UnityPackHubProtocol.cs` 两处定义，字段逐一对应
+- 修改任何格式时，两边同时递增 `VERSION`。Rust 测试会校验两边的版本号和文件名是否一致
+- 预览图文件名只由 Rust 的 `preview_output_file` 生成，前端和 C# 都只读取它给出的名字
 
 ---
 
@@ -377,21 +356,19 @@ interface ISortStrategy {
 
 | 层级 | 处理方式 |
 |------|----------|
-| **Repository** | 抛出异常，不捕获 |
-| **Service** | 捕获可恢复的异常，通过 `eventBus` 上报 |
-| **Store** | `try/finally` 管理 loading 状态，透传错误事件 |
-| **Component** | 监听事件，展示 Toast 或错误 UI |
+| **data / platform** | 抛出异常，不捕获 |
+| **Service** | 可恢复的问题作为结构化结果返回（如 `ScanWarning`），其余抛出带原因的错误（如 `UnityError`） |
+| **Store / Composable** | `try/finally` 管理 loading 状态；把错误翻译成文案，通过 `ui/feedback` 提示 |
+| **Component** | 只展示，不吞异常 |
 
 ### 10.2 规则
 
 ```typescript
 // Good — 具体异常 + 用户反馈
 try {
-  await scanService.scanDirectories(dirs)
+  await libraryService.scan(directories, classificationPath)
 } catch (error) {
-  eventBus.emit('scan:error', {
-    message: `扫描失败: ${error instanceof Error ? error.message : String(error)}`
-  })
+  notify.error(tr('scanFailed', { reason: errorMessage(error) }))
 }
 
 // Bad — 静默吞掉
@@ -543,23 +520,21 @@ chore: 升级 Quasar 至 2.20
 ### 15.1 文件组织
 
 ```
-src/
-├── services/
-│   ├── commandManager.ts
-│   └── __tests__/
-│       └── commandManager.test.ts
-├── utils/
-│   ├── formatBytes.ts
-│   └── __tests__/
-│       └── formatBytes.test.ts
+tests/
+├── architecture.test.ts       # 分层规则
+├── databaseMigration.test.ts  # Dexie 升级（fake-indexeddb）
+├── librarySync.test.ts        # 扫描对账
+└── domain.test.ts             # 其余 domain 纯逻辑
 ```
+
+运行 `npm test`（vitest）、`cargo test`（Rust 与协议一致性）和 `npm run check:bridge`（离线编译 C# 桥接）。
 
 ### 15.2 规则
 
-- 测试文件与源文件同目录下的 `__tests__/` 文件夹中
+- 测试放在根目录 `tests/` 下
 - 文件名：`[source].test.ts`
-- 纯函数和工具函数**必须**有单元测试
-- Repository 接口的每个实现**应该**有集成测试
+- `domain/` 中的纯函数**必须**有单元测试
+- 数据库 schema 变更**必须**补迁移测试
 - 测试命名使用 `describe` + `it` 结构：
 
 ```typescript
@@ -576,7 +551,6 @@ describe('CommandManager', () => {
 
 - 资产、标签、分组数据：Dexie (IndexedDB)
 - 用户设置：Tauri `appDataDir` 下的 JSON 文件
-- 保存 Vue 响应式对象前，必须 `JSON.parse(JSON.stringify(obj))` 去除 Proxy
 - 数据库 Schema 变更必须递增版本号，提供迁移逻辑
 
 ---
@@ -585,7 +559,8 @@ describe('CommandManager', () => {
 
 提交 PR 前自查：
 
-- [ ] TypeScript 无报错（`vue-tsc --noEmit`）
+- [ ] TypeScript 无报错（`npm run typecheck`）
+- [ ] `npm test` 和 `cargo test` 通过，改了 C# 桥接时 `npm run check:bridge` 通过
 - [ ] 无 `any` 类型
 - [ ] 无硬编码的颜色/间距/字符串
 - [ ] 新增文案已添加中英文翻译
