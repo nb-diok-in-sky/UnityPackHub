@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { Asset, Tag } from '../../types/asset'
 import { useAssetStore } from '../../stores/assetStore'
 import { useTagStore } from '../../stores/tagStore'
-import { useI18n } from '../../services/i18n'
+import { useI18n } from '../../i18n'
+import { addTag, removeTag } from '../../domain/assetChanges'
 import TagPill from '../TagPill.vue'
 
 const props = defineProps<{ asset: Asset }>()
@@ -17,11 +18,11 @@ const assigned = computed(() => props.asset.tagIds.map(tags.getTagById).filter((
 const available = computed(() => tags.tags.filter((tag) => !props.asset.tagIds.includes(tag.id)))
 
 async function add(id: string): Promise<void> {
-  await assets.updateAsset(props.asset.id, { tagIds: [...props.asset.tagIds, id] })
+  await assets.edit([props.asset.id], addTag(id))
   open.value = false
 }
 async function remove(id: string): Promise<void> {
-  await assets.updateAsset(props.asset.id, { tagIds: props.asset.tagIds.filter((value) => value !== id) })
+  await assets.edit([props.asset.id], removeTag(id))
 }
 </script>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useI18n } from "../services/i18n";
+import { useI18n } from "../i18n";
 import { useSidebarManagement } from "../composables/useSidebarManagement";
 import SidebarKindSwitcher from "./sidebar/SidebarKindSwitcher.vue";
 import SidebarGroupList from "./sidebar/SidebarGroupList.vue";
@@ -39,33 +39,33 @@ function saveTag(value: EditableGroup | EditableTag): void {
 <template>
   <div class="sidebar">
     <SidebarKindSwitcher
-      :active-kind="sidebar.assetStore.activeAssetKind"
-      :package-count="sidebar.assetStore.packageCount"
-      :model-count="sidebar.assetStore.modelCount"
+      :active-kind="sidebar.browse.kind"
+      :package-count="sidebar.browse.statistics.package"
+      :model-count="sidebar.browse.statistics.model"
       :package-label="t.packages"
       :model-label="t.models"
-      @select="sidebar.selectAssetKind"
+      @select="sidebar.browse.setKind"
     />
 
     <div class="divider" />
     <button
       class="sidebar-item"
-      :class="{ 'sidebar-item--active': sidebar.assetStore.showFavoritesOnly }"
-      @click="sidebar.selectFavorites"
+      :class="{ 'sidebar-item--active': sidebar.browse.favoritesOnly }"
+      @click="sidebar.browse.showFavorites"
     >
       <q-icon name="star" size="18px" color="amber" />
       <span>{{ t.favorites }}</span>
-      <span class="count">{{ sidebar.assetStore.favoriteCount }}</span>
+      <span class="count">{{ sidebar.browse.favoriteCount }}</span>
     </button>
 
     <div class="divider" />
     <div class="section-header">{{ t.groups }}</div>
     <SidebarGroupList
       :groups="sidebar.visibleGroups.value"
-      :active-id="sidebar.groupStore.activeGroupId"
+      :active-id="sidebar.browse.activeGroupId"
       :edit-label="t.edit"
       :delete-label="t.delete"
-      @select="sidebar.selectGroup"
+      @select="sidebar.browse.toggleGroup"
       @edit="sidebar.editGroup"
       @delete="sidebar.deleteGroup"
     />
@@ -77,15 +77,15 @@ function saveTag(value: EditableGroup | EditableTag): void {
     <div class="divider" />
     <div class="section-header">{{ t.tags }}</div>
     <SidebarTagList
-      :tags="sidebar.tagStore.tags"
-      :active-id="sidebar.tagStore.activeTagId"
-      :painting-id="sidebar.assetStore.paintingTagId"
+      :tags="sidebar.tags.tags"
+      :active-id="sidebar.browse.activeTagId"
+      :painting-id="sidebar.browse.paintingTagId"
       :edit-label="t.edit"
       :delete-label="t.delete"
-      @select="sidebar.selectTag"
+      @select="sidebar.browse.toggleTag"
       @edit="sidebar.editTag"
       @delete="sidebar.deleteTag"
-      @paint="sidebar.assetStore.startTagPaint"
+      @paint="sidebar.browse.togglePainting"
     />
     <button class="add-button" @click="sidebar.createTag">
       <q-icon name="add" size="16px" />

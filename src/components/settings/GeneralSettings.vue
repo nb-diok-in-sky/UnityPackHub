@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSettingsStore } from '../../stores/settingsStore'
-import { useI18n } from '../../services/i18n'
-import type { AppLocale, AppTheme } from '../../types/asset'
+import { useI18n } from '../../i18n'
+import type { AppLocale, AppTheme } from '../../types/settings'
 
 const settingsStore = useSettingsStore()
 const { t } = useI18n()

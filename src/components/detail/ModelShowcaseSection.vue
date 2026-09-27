@@ -2,8 +2,7 @@
 import { computed } from "vue";
 import type { Asset } from "../../types/asset";
 import type { FilterOption } from "../../types/ui";
-import { useI18n } from "../../services/i18n";
-import { commands } from "../../services/tauriCommands";
+import { useI18n } from "../../i18n";
 import {
   useModelShowcase,
   type ModelFileFilter,
@@ -64,7 +63,7 @@ defineExpose({ reset: showcase.reset });
           v-for="file in showcase.filtered.value"
           :key="file.filePath"
           :file="file"
-          @open="commands.revealInExplorer(file.filePath)"
+          @open="showcase.reveal(file.filePath)"
         />
       </div>
       <SectionState

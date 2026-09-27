@@ -1,117 +1,40 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, toRef } from 'vue'
-import { readFile } from '@tauri-apps/plugin-fs'
-import { fetch } from '@tauri-apps/plugin-http'
+import { computed, toRef, watchEffect } from 'vue'
 import type { Asset } from '../../types/asset'
-import { useAssetStore } from '../../stores/assetStore'
-import { useThumbnailStore } from '../../stores/thumbnailStore'
-import { useI18n } from '../../services/i18n'
-import { setAssetCoverFromBlob, setAssetCoverFromDataUrl } from '../../services/assetCoverService'
+import { useCoverStore } from '../../stores/coverStore'
+import { useCoverInput } from '../../composables/useCoverInput'
 import { useOfficialCover } from '../../composables/useOfficialCover'
+import { useI18n } from '../../i18n'
 import OfficialCoverDialog from './OfficialCoverDialog.vue'
 
 const props = defineProps<{ asset: Asset }>()
-const assetStore = useAssetStore()
-const thumbnails = useThumbnailStore()
+const covers = useCoverStore()
 const { t } = useI18n()
-const officialCover = useOfficialCover(toRef(props, 'asset'))
-const isDragOver = ref(false)
-let unlistenDragDrop: (() => void) | null = null
+const asset = toRef(props, 'asset')
+const input = useCoverInput(asset)
+const officialCover = useOfficialCover(asset)
+const coverSrc = computed(() => covers.url(props.asset.id) ?? '')
 
-const coverSrc = computed(() => {
-  const blobUrl = thumbnails.getUrl(props.asset.id)
-  if (blobUrl) return blobUrl
-  return props.asset.thumbnailPath.startsWith('data:') ? props.asset.thumbnailPath : ''
-})
-
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico', '.tiff']
-const MIME_TYPES: Record<string, string> = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
-  webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', ico: 'image/x-icon', tiff: 'image/tiff',
-}
-
-async function setFromPath(path: string): Promise<void> {
-  const data = await readFile(path)
-  const extension = path.split('.').pop()?.toLowerCase() ?? 'png'
-  await setAssetCoverFromBlob(props.asset, new Blob([data], { type: MIME_TYPES[extension] ?? 'image/png' }))
-}
-
-async function setFromUrl(url: string): Promise<void> {
-  const response = await fetch(url)
-  if (response.ok) await setAssetCoverFromBlob(props.asset, await response.blob())
-}
-
-async function setFromFile(file?: File): Promise<void> {
-  if (file?.type.startsWith('image/')) await setAssetCoverFromBlob(props.asset, file)
-}
-
-async function handlePaste(event: ClipboardEvent): Promise<void> {
-  const image = [...(event.clipboardData?.items ?? [])].find((item) => item.type.startsWith('image/'))?.getAsFile()
-  if (image) {
-    event.preventDefault()
-    await setFromFile(image)
-    return
-  }
-  const text = event.clipboardData?.getData('text/plain') ?? ''
-  if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|bmp|svg)/i.test(text)) {
-    event.preventDefault()
-    await setFromUrl(text)
-  }
-}
-
-async function handleDrop(event: DragEvent): Promise<void> {
-  event.preventDefault()
-  isDragOver.value = false
-  const data = event.dataTransfer
-  if (!data) return
-  const cover = data.getData('application/cover-image')
-  if (cover) return setAssetCoverFromDataUrl(props.asset, cover)
-  if (data.files[0]) return setFromFile(data.files[0])
-  const imageUrl = data.getData('text/uri-list') || data.getData('text/plain')
-  if (/^https?:\/\//i.test(imageUrl)) await setFromUrl(imageUrl)
-}
-
-async function remove(): Promise<void> {
-  await thumbnails.remove(props.asset.id)
-  await assetStore.updateAsset(props.asset.id, { thumbnailPath: '' })
-}
-
-onMounted(async () => {
-  if (props.asset.thumbnailPath === 'db') await thumbnails.load(props.asset.id)
-  const { getCurrentWebview } = await import('@tauri-apps/api/webview')
-  unlistenDragDrop = await getCurrentWebview().onDragDropEvent(async ({ payload }) => {
-    if (payload.type === 'enter' || payload.type === 'over') isDragOver.value = true
-    if (payload.type === 'leave') isDragOver.value = false
-    if (payload.type === 'drop') {
-      isDragOver.value = false
-      const path = payload.paths.find((value) => IMAGE_EXTENSIONS.some((ext) => value.toLowerCase().endsWith(ext)))
-      if (path) await setFromPath(path)
-    }
-  })
-  window.addEventListener('paste', handlePaste)
-})
-
-onUnmounted(() => {
-  unlistenDragDrop?.()
-  window.removeEventListener('paste', handlePaste)
+watchEffect(() => {
+  if (props.asset.cover === 'stored' && !covers.url(props.asset.id)) void covers.ensure(props.asset.id)
 })
 </script>
 
 <template>
-  <div class="asset-cover" :class="{ 'asset-cover--dragover': isDragOver }"
-    @dragover.prevent="isDragOver = true" @dragleave="isDragOver = false" @drop="handleDrop">
+  <div class="asset-cover" :class="{ 'asset-cover--dragover': input.isDragOver.value }"
+    @dragover.prevent="input.isDragOver.value = true" @dragleave="input.isDragOver.value = false" @drop="input.handleDrop">
     <img v-if="coverSrc" :src="coverSrc" :alt="asset.name" class="asset-cover__image" />
     <div v-else class="asset-cover__placeholder">
       <q-icon name="add_photo_alternate" size="32px" color="grey-5" />
       <span>{{ t.coverDropHint }}</span>
     </div>
-    <label class="asset-cover__picker" title="选择本地封面">
-      <input type="file" accept="image/*" @change="setFromFile(($event.target as HTMLInputElement).files?.[0])" />
+    <label class="asset-cover__picker" :title="t.chooseLocalCover">
+      <input type="file" accept="image/*" @change="input.fromFile(($event.target as HTMLInputElement).files?.[0])" />
       <q-icon name="add_photo_alternate" size="18px" />
     </label>
-    <q-btn v-if="coverSrc" flat round dense icon="close" size="xs" class="asset-cover__remove" @click.stop="remove" />
+    <q-btn v-if="coverSrc" flat round dense icon="close" size="xs" class="asset-cover__remove" @click.stop="input.remove" />
     <q-btn v-if="asset.assetKind === 'package'" unelevated dense no-caps icon="storefront"
-      label="获取官方封面" color="primary" class="asset-cover__official" @click.stop="officialCover.openDialog" />
+      :label="t.officialCover" color="primary" class="asset-cover__official" @click.stop="officialCover.openDialog" />
   </div>
 
   <OfficialCoverDialog

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from "vue";
-import { useAssetStore } from "../../stores/assetStore";
-import { useI18n } from "../../services/i18n";
-const assets = useAssetStore();
+import { useBrowseStore } from "../../stores/browseStore";
+import { useI18n } from "../../i18n";
+const browse = useBrowseStore();
 const { t } = useI18n();
 let timer: ReturnType<typeof setTimeout> | null = null;
-const input = ref(assets.searchQuery);
+const input = ref(browse.search);
 function update(value: string) {
   input.value = value;
   if (timer) clearTimeout(timer);
-  timer = setTimeout(() => assets.setSearch(value), 200);
+  timer = setTimeout(() => (browse.search = value), 200);
 }
-watch(() => assets.searchQuery, (value) => { input.value = value; });
+watch(() => browse.search, (value) => { input.value = value; });
 onUnmounted(() => {
   if (timer) clearTimeout(timer);
 });

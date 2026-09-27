@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Asset, AssetGroup } from "../../types/asset";
-import { useI18n } from "../../services/i18n";
+import { useI18n } from "../../i18n";
 defineProps<{ asset: Asset; groups: AssetGroup[] }>();
 const emit = defineEmits<{
   open: [];

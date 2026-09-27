@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { open } from '@tauri-apps/plugin-dialog'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { useI18n } from '../../services/i18n'
-import { commands } from '../../services/tauriCommands'
+import { useI18n } from '../../i18n'
+import { fileService } from '../../services/fileService'
+import { unityService } from '../../services/unityService'
 
 const settingsStore = useSettingsStore()
 const { t } = useI18n()
@@ -13,7 +13,7 @@ const isDetecting = ref(false)
 async function detectEditors(): Promise<void> {
   isDetecting.value = true
   try {
-    detectedEditors.value = await commands.discoverUnityEditors()
+    detectedEditors.value = await unityService.discoverEditors()
     if (!settingsStore.settings.unityEditorPath && detectedEditors.value.length === 1) {
       await settingsStore.setUnityEditorPath(detectedEditors.value[0] ?? '')
     }
@@ -23,12 +23,8 @@ async function detectEditors(): Promise<void> {
 }
 
 async function chooseEditor(): Promise<void> {
-  const selected = await open({
-    directory: false,
-    multiple: false,
-    filters: [{ name: 'Unity Editor', extensions: ['exe'] }],
-  })
-  if (typeof selected === 'string') await settingsStore.setUnityEditorPath(selected)
+  const selected = await fileService.pickFile([{ name: 'Unity Editor', extensions: ['exe'] }])
+  if (selected) await settingsStore.setUnityEditorPath(selected)
 }
 </script>
 

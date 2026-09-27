@@ -1,236 +1,144 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Asset, AssetKind, ModelCoverFilter } from '../types/asset'
-import { assetRepository, assetStoreLinkRepository } from '../services/repositories'
-import { scanService } from '../services/scanner'
-import { useSettingsStore } from './settingsStore'
-import { useTagStore } from './tagStore'
+import { computed, ref, shallowRef } from 'vue'
+import type { Asset, AssetEdit } from '../types/asset'
+import { diffEdits, type HistoryEntry } from '../domain/assetChanges'
+import { MODEL_PREVIEW_VERSION } from '../domain/modelCover'
+import { assetRecords } from '../services/organizationService'
+import { libraryService } from '../services/libraryService'
+import { unityService, type ImportResult } from '../services/unityService'
+import { useCoverStore } from './coverStore'
 import { useGroupStore } from './groupStore'
-import { useThumbnailStore } from './thumbnailStore'
-import { getModelCoverStatus } from '../services/modelPreviewService'
-import { useAssetFiltering } from '../composables/useAssetFiltering'
 
+const MAX_HISTORY = 50
+
+/**
+ * The asset library in memory. Every user edit (tags, favourite, notes, removal) goes through
+ * `edit` / `remove`, which record it for undo; automatic changes use `patch` and are not undoable.
+ */
 export const useAssetStore = defineStore('assets', () => {
   const assets = ref<Asset[]>([])
-  const searchQuery = ref('')
-  const isScanning = ref(false)
-  const selectedIds = ref<Set<string>>(new Set())
-  const showFavoritesOnly = ref(false)
-  const activeAssetKind = ref<AssetKind>('package')
-  const modelCoverFilter = ref<ModelCoverFilter>('all')
+  const undoStack = shallowRef<HistoryEntry[]>([])
+  const redoStack = shallowRef<HistoryEntry[]>([])
 
-  const settingsStore = useSettingsStore()
-  const tagStore = useTagStore()
-  const groupStore = useGroupStore()
-  const { kindAssets, filteredAssets } = useAssetFiltering(assets, {
-    searchQuery,
-    showFavoritesOnly,
-    activeAssetKind,
-    modelCoverFilter,
-  })
-
-  const totalCount = computed(() => kindAssets.value.length)
-  const libraryTotalCount = computed(() => assets.value.length)
-  const assetStatistics = computed(() => {
-    const statistics = {
-      packageCount: 0,
-      modelCount: 0,
-      pendingModelCoverCount: 0,
-      completedModelCoverCount: 0,
-      ineligibleModelCoverCount: 0,
-      failedModelCoverCount: 0,
-    }
-
-    for (const asset of assets.value) {
-      if ((asset.assetKind || 'package') === 'package') {
-        statistics.packageCount++
-        continue
-      }
-
-      statistics.modelCount++
-      const status = getModelCoverStatus(asset)
-      if (status === 'pending') statistics.pendingModelCoverCount++
-      else if (status === 'completed') statistics.completedModelCoverCount++
-      else if (status === 'not-needed') statistics.ineligibleModelCoverCount++
-      else statistics.failedModelCoverCount++
-    }
-
-    return statistics
-  })
-  const packageCount = computed(() => assetStatistics.value.packageCount)
-  const modelCount = computed(() => assetStatistics.value.modelCount)
-  const pendingModelCoverCount = computed(() => assetStatistics.value.pendingModelCoverCount)
-  const completedModelCoverCount = computed(() => assetStatistics.value.completedModelCoverCount)
-  const ineligibleModelCoverCount = computed(() => assetStatistics.value.ineligibleModelCoverCount)
-  const failedModelCoverCount = computed(() => assetStatistics.value.failedModelCoverCount)
-  const filteredCount = computed(() => filteredAssets.value.length)
-  const totalSize = computed(() =>
-    kindAssets.value.reduce((sum, a) => sum + a.fileSize, 0)
-  )
-  const favoriteCount = computed(() =>
-    kindAssets.value.filter((a) => a.isFavorite).length
-  )
-  const isMultiSelect = computed(() => selectedIds.value.size > 0)
+  const byId = computed(() => new Map(assets.value.map((asset) => [asset.id, asset])))
 
   async function load(): Promise<void> {
-    assets.value = await assetRepository.getAll()
+    assets.value = await assetRecords.getAll()
   }
 
-  async function scan(): Promise<void> {
-    isScanning.value = true
-    try {
-      const classification = settingsStore.settings.classification
-      await scanService.scanDirectories(
-        settingsStore.settings.scanDirectories,
-        classification.enabled ? classification.jsonPath : '',
-      )
+  function applyLocally(id: string, patch: Partial<Asset>): void {
+    const index = assets.value.findIndex((asset) => asset.id === id)
+    if (index !== -1) assets.value[index] = { ...assets.value[index]!, ...patch }
+  }
+
+  /** Automatic, non-undoable change (covers, render state, usage time, scan results). */
+  async function patch(id: string, change: Partial<Asset>): Promise<void> {
+    const next = { ...change, updatedAt: Date.now() }
+    await assetRecords.update(id, next)
+    applyLocally(id, next)
+  }
+
+  async function applyEdits(updates: Array<{ id: string; edit: AssetEdit }>): Promise<void> {
+    const now = Date.now()
+    const records = updates.map(({ id, edit }) => ({ id, patch: { ...edit, updatedAt: now } }))
+    await assetRecords.updateMany(records)
+    for (const { id, patch: change } of records) applyLocally(id, change)
+  }
+
+  function record(entry: HistoryEntry): void {
+    undoStack.value = [...undoStack.value, entry].slice(-MAX_HISTORY)
+    redoStack.value = []
+  }
+
+  /** Applies a user edit to the given assets and records it for undo. */
+  async function edit(ids: string[], change: (asset: Asset) => AssetEdit): Promise<void> {
+    const targets = ids.map((id) => byId.value.get(id)).filter((asset): asset is Asset => !!asset)
+    const changes = diffEdits(targets, change)
+    if (changes.length === 0) return
+    await applyEdits(changes.map(({ id, after }) => ({ id, edit: after })))
+    record({ kind: 'edit', changes })
+  }
+
+  /** Removes assets from the library (files stay on disk); undoable until the next scan. */
+  async function remove(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const removed = await libraryService.remove(ids)
+    await dropLocally(ids)
+    record({ kind: 'delete', assets: removed.assets, memberships: removed.memberships })
+  }
+
+  async function dropLocally(ids: string[]): Promise<void> {
+    const removed = new Set(ids)
+    assets.value = assets.value.filter((asset) => !removed.has(asset.id))
+    await useGroupStore().load()
+  }
+
+  async function undo(): Promise<void> {
+    const entry = undoStack.value.at(-1)
+    if (!entry) return
+    undoStack.value = undoStack.value.slice(0, -1)
+    if (entry.kind === 'edit') await applyEdits(entry.changes.map(({ id, before }) => ({ id, edit: before })))
+    else {
+      await libraryService.restore(entry.assets, entry.memberships)
       await load()
-      await groupStore.load()
-    } finally {
-      isScanning.value = false
+      await useGroupStore().load()
     }
+    redoStack.value = [...redoStack.value, entry]
   }
 
-  async function updateAsset(id: string, data: Partial<Asset>): Promise<void> {
-    await assetRepository.update(id, { ...data, updatedAt: Date.now() })
-    const index = assets.value.findIndex((a) => a.id === id)
-    if (index !== -1) {
-      assets.value[index] = Object.assign({}, assets.value[index], data, { updatedAt: Date.now() })
+  async function redo(): Promise<void> {
+    const entry = redoStack.value.at(-1)
+    if (!entry) return
+    redoStack.value = redoStack.value.slice(0, -1)
+    if (entry.kind === 'edit') await applyEdits(entry.changes.map(({ id, after }) => ({ id, edit: after })))
+    else {
+      const ids = entry.assets.map((asset) => asset.id)
+      await libraryService.remove(ids)
+      await dropLocally(ids)
     }
+    undoStack.value = [...undoStack.value, entry]
   }
 
-  async function toggleFavorite(id: string): Promise<void> {
-    const asset = assets.value.find((a) => a.id === id)
-    if (asset) {
-      await updateAsset(id, { isFavorite: !asset.isFavorite })
-    }
+  /** Called after a scan: assets were re-created or removed, so old history no longer applies. */
+  function clearHistory(): void {
+    undoStack.value = []
+    redoStack.value = []
   }
 
-  async function deleteAsset(id: string): Promise<void> {
-    const thumbnailStore = useThumbnailStore()
-    await thumbnailStore.remove(id)
-    await assetStoreLinkRepository.delete(id)
-    await assetRepository.delete(id)
-    await groupStore.removeAssetsFromAll([id])
-    assets.value = assets.value.filter((a) => a.id !== id)
-    selectedIds.value.delete(id)
+  /** Stores a cover image; for models it also counts as a finished cover. */
+  async function setCover(asset: Asset, image: Blob): Promise<void> {
+    await useCoverStore().save(asset.id, image)
+    await patch(asset.id, {
+      cover: 'stored',
+      ...(asset.modelPreview ? { modelPreview: { ...asset.modelPreview, version: MODEL_PREVIEW_VERSION, error: '' } } : {}),
+    })
   }
 
-  function setSearch(query: string): void {
-    searchQuery.value = query
+  async function removeCover(asset: Asset): Promise<void> {
+    await useCoverStore().remove(asset.id)
+    await patch(asset.id, { cover: 'none' })
   }
 
-  function setFavoritesOnly(value: boolean): void {
-    showFavoritesOnly.value = value
-  }
-
-  function setActiveAssetKind(kind: AssetKind): void {
-    activeAssetKind.value = kind
-    tagStore.setActiveTag(null)
-    groupStore.setActiveGroup(null)
-    showFavoritesOnly.value = false
-    modelCoverFilter.value = 'all'
-    clearSelection()
-  }
-
-  function setModelCoverFilter(filter: ModelCoverFilter): void {
-    modelCoverFilter.value = filter
-    clearSelection()
-  }
-
-  const paintingTagId = ref<string | null>(null)
-
-  function startTagPaint(tagId: string): void {
-    paintingTagId.value = paintingTagId.value === tagId ? null : tagId
-  }
-
-  function stopTagPaint(): void {
-    paintingTagId.value = null
-  }
-
-  async function paintTag(assetId: string): Promise<void> {
-    if (!paintingTagId.value) return
-    const asset = assets.value.find(a => a.id === assetId)
-    if (!asset || asset.tagIds.includes(paintingTagId.value)) return
-    await updateAsset(assetId, { tagIds: [...asset.tagIds, paintingTagId.value] })
-  }
-
-  let lastSelectedId: string | null = null
-
-  function toggleSelection(id: string): void {
-    if (selectedIds.value.has(id)) {
-      selectedIds.value.delete(id)
-    } else {
-      selectedIds.value.add(id)
-    }
-    lastSelectedId = id
-    selectedIds.value = new Set(selectedIds.value)
-  }
-
-  function rangeSelect(id: string): void {
-    const list = filteredAssets.value
-    const currentIdx = list.findIndex(a => a.id === id)
-    const lastIdx = lastSelectedId ? list.findIndex(a => a.id === lastSelectedId) : -1
-    if (currentIdx === -1) return
-    if (lastIdx === -1) {
-      toggleSelection(id)
-      return
-    }
-    const start = Math.min(currentIdx, lastIdx)
-    const end = Math.max(currentIdx, lastIdx)
-    for (let i = start; i <= end; i++) {
-      const asset = list[i]
-      if (asset) selectedIds.value.add(asset.id)
-    }
-    lastSelectedId = id
-    selectedIds.value = new Set(selectedIds.value)
-  }
-
-  function clearSelection(): void {
-    selectedIds.value = new Set()
-  }
-
-  function selectAll(): void {
-    selectedIds.value = new Set(filteredAssets.value.map((a) => a.id))
+  async function importToUnity(asset: Asset): Promise<ImportResult> {
+    const result = await unityService.importAsset(asset)
+    await patch(asset.id, { lastUsedAt: Date.now() })
+    return result
   }
 
   return {
     assets,
-    searchQuery,
-    isScanning,
-    selectedIds,
-    showFavoritesOnly,
-    activeAssetKind,
-    modelCoverFilter,
-    filteredAssets,
-    totalCount,
-    libraryTotalCount,
-    packageCount,
-    modelCount,
-    pendingModelCoverCount,
-    completedModelCoverCount,
-    ineligibleModelCoverCount,
-    failedModelCoverCount,
-    filteredCount,
-    totalSize,
-    favoriteCount,
-    isMultiSelect,
+    byId,
+    canUndo: computed(() => undoStack.value.length > 0),
+    canRedo: computed(() => redoStack.value.length > 0),
     load,
-    scan,
-    updateAsset,
-    toggleFavorite,
-    deleteAsset,
-    setSearch,
-    setFavoritesOnly,
-    setActiveAssetKind,
-    setModelCoverFilter,
-    paintingTagId,
-    startTagPaint,
-    stopTagPaint,
-    paintTag,
-    toggleSelection,
-    rangeSelect,
-    clearSelection,
-    selectAll,
+    patch,
+    edit,
+    remove,
+    undo,
+    redo,
+    clearHistory,
+    setCover,
+    removeCover,
+    importToUnity,
   }
 })

@@ -1,134 +1,51 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { UserSettings, ScanDirectory, CardSize, SortKey, SortOrder, AppLocale, AppTheme, QuickLink } from '../types/asset'
-import { DEFAULT_SETTINGS } from '../types/asset'
-import { settingsRepository } from '../services/repositories'
-import { useI18n } from '../services/i18n'
+import type { AppLocale, AppTheme, CardSize, QuickLink, SortKey, SortOrder, UserSettings } from '../types/settings'
+import { defaultSettings } from '../domain/settings'
+import { settingsService } from '../services/settingsService'
+import { useI18n } from '../i18n'
 
 export const useSettingsStore = defineStore('settings', () => {
-  const settings = ref<UserSettings>({ ...DEFAULT_SETTINGS })
-  const isLoaded = ref(false)
-
+  const settings = ref<UserSettings>(defaultSettings())
   const { setLocale } = useI18n()
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
 
-  function applyTheme(theme: AppTheme): void {
-    const isDark =
-      theme === 'dark' ||
-      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    document.documentElement.classList.toggle('dark-theme', isDark)
+  function applyTheme(): void {
+    const theme = settings.value.theme
+    document.documentElement.classList.toggle('dark-theme', theme === 'dark' || (theme === 'system' && systemDark.matches))
   }
+  systemDark.addEventListener('change', applyTheme)
 
   async function load(): Promise<void> {
-    settings.value = await settingsRepository.get()
+    settings.value = await settingsService.load()
     setLocale(settings.value.locale)
-    applyTheme(settings.value.theme)
-    isLoaded.value = true
+    applyTheme()
   }
 
-  async function save(): Promise<void> {
-    settings.value.id = 'user'
-    await settingsRepository.save(settings.value)
-  }
-
-  async function addScanDirectory(path: string): Promise<void> {
-    const exists = settings.value.scanDirectories.some((d) => d.path === path)
-    if (exists) return
-
-    settings.value.scanDirectories.push({ path, enabled: true })
-    await save()
-  }
-
-  async function removeScanDirectory(path: string): Promise<void> {
-    settings.value.scanDirectories = settings.value.scanDirectories.filter(
-      (d) => d.path !== path
-    )
-    await save()
-  }
-
-  async function toggleScanDirectory(path: string): Promise<void> {
-    const dir = settings.value.scanDirectories.find((d) => d.path === path)
-    if (dir) {
-      dir.enabled = !dir.enabled
-      await save()
-    }
-  }
-
-  async function setCardSize(size: CardSize): Promise<void> {
-    settings.value.cardSize = size
-    await save()
-  }
-
-  async function setSortBy(key: SortKey): Promise<void> {
-    settings.value.sortBy = key
-    await save()
-  }
-
-  async function setSortOrder(order: SortOrder): Promise<void> {
-    settings.value.sortOrder = order
-    await save()
-  }
-
-  async function setAppLocale(locale: AppLocale): Promise<void> {
-    settings.value.locale = locale
-    setLocale(locale)
-    await save()
-  }
-
-  async function setTheme(theme: AppTheme): Promise<void> {
-    settings.value.theme = theme
-    applyTheme(theme)
-    await save()
-  }
-
-  async function setUnityEditorPath(path: string): Promise<void> {
-    settings.value.unityEditorPath = path
-    await save()
-  }
-
-  async function setClassificationJsonPath(path: string): Promise<void> {
-    settings.value.classification.jsonPath = path
-    settings.value.classification.enabled = path.length > 0
-    await save()
-  }
-
-  async function setClassificationEnabled(enabled: boolean): Promise<void> {
-    settings.value.classification.enabled = enabled
-    await save()
-  }
-
-  async function setShaderAdapterRulesPath(path: string): Promise<void> {
-    settings.value.shaderAdapters.rulesPath = path
-    await save()
-  }
-
-  async function addQuickLink(link: QuickLink): Promise<void> {
-    settings.value.quickLinks.push(link)
-    await save()
-  }
-
-  async function removeQuickLink(url: string): Promise<void> {
-    settings.value.quickLinks = settings.value.quickLinks.filter(l => l.url !== url)
-    await save()
+  /** Applies a change and persists the whole settings file. */
+  async function update(change: (draft: UserSettings) => void): Promise<void> {
+    change(settings.value)
+    await settingsService.save(settings.value)
   }
 
   return {
     settings,
-    isLoaded,
     load,
-    save,
-    addScanDirectory,
-    removeScanDirectory,
-    toggleScanDirectory,
-    setCardSize,
-    setSortBy,
-    setSortOrder,
-    setAppLocale,
-    setTheme,
-    setUnityEditorPath,
-    setClassificationJsonPath,
-    setClassificationEnabled,
-    setShaderAdapterRulesPath,
-    addQuickLink,
-    removeQuickLink,
+    update,
+    setCardSize: (size: CardSize) => update((draft) => { draft.cardSize = size }),
+    setSortBy: (key: SortKey) => update((draft) => { draft.sortBy = key }),
+    setSortOrder: (order: SortOrder) => update((draft) => { draft.sortOrder = order }),
+    setUnityEditorPath: (path: string) => update((draft) => { draft.unityEditorPath = path }),
+    setShaderAdapterRulesPath: (path: string) => update((draft) => { draft.shaderAdapters.rulesPath = path }),
+    addQuickLink: (link: QuickLink) => update((draft) => { draft.quickLinks.push(link) }),
+    removeQuickLink: (url: string) => update((draft) => { draft.quickLinks = draft.quickLinks.filter((link) => link.url !== url) }),
+    async setAppLocale(locale: AppLocale): Promise<void> {
+      await update((draft) => { draft.locale = locale })
+      setLocale(locale)
+    },
+    async setTheme(theme: AppTheme): Promise<void> {
+      await update((draft) => { draft.theme = theme })
+      applyTheme()
+    },
   }
 })

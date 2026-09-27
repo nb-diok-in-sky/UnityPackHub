@@ -1,29 +1,31 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAssetStore } from '../stores/assetStore'
-import { useI18n } from '../services/i18n'
+import { useBrowseStore } from '../stores/browseStore'
+import { useI18n } from '../i18n'
 import { formatBytes } from '../utils/formatBytes'
 
 const assetStore = useAssetStore()
+const browse = useBrowseStore()
 const { t } = useI18n()
 
-const totalSizeDisplay = computed(() => formatBytes(assetStore.totalSize))
+const totalSizeDisplay = computed(() => formatBytes(browse.totalSize))
 </script>
 
 <template>
   <div class="statusbar">
-    <span>{{ assetStore.totalCount }} {{ t.assetsTotal }}</span>
+    <span>{{ browse.kindAssets.length }} {{ t.assetsTotal }}</span>
     <span class="statusbar__dot" />
-    <span>{{ assetStore.filteredCount }} {{ t.shown }}</span>
+    <span>{{ browse.visibleAssets.length }} {{ t.shown }}</span>
     <span class="statusbar__dot" />
     <span>{{ totalSizeDisplay }}</span>
-    <template v-if="assetStore.activeAssetKind === 'model'">
+    <template v-if="browse.kind === 'model'">
       <span class="statusbar__dot" />
-      <span>{{ t.modelCoverPending }} {{ assetStore.pendingModelCoverCount }}</span>
+      <span>{{ t.modelCoverPending }} {{ browse.statistics.pending }}</span>
       <span class="statusbar__dot" />
-      <span>{{ t.modelCoverCompleted }} {{ assetStore.completedModelCoverCount }}</span>
+      <span>{{ t.modelCoverCompleted }} {{ browse.statistics.completed }}</span>
       <span class="statusbar__dot" />
-      <span>{{ t.modelCoverNotNeeded }} {{ assetStore.ineligibleModelCoverCount }}</span>
+      <span>{{ t.modelCoverNotNeeded }} {{ browse.statistics['not-needed'] }}</span>
     </template>
   </div>
 </template>

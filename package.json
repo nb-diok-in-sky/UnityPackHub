@@ -11,6 +11,8 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "check:bridge": "node scripts/check-bridge.mjs",
     "postinstall": "quasar prepare --silent"
   },
   "dependencies": {
@@ -33,7 +35,9 @@
     "@quasar/app-vite": "^3.0.0-rc.3",
     "@types/node": "^22.19.11",
     "autoprefixer": "^10.4.27",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^6.0.0",
+    "vitest": "^3.2.7",
     "vue-tsc": "^3.3.3"
   },
   "keywords": [

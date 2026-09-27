@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Asset } from "../../types/asset";
-import { useI18n } from "../../services/i18n";
+import { useI18n } from "../../i18n";
 import {
   PACKAGE_SHOWCASE_TYPES,
   usePackageShowcase,
@@ -54,7 +54,7 @@ defineExpose({ reset: showcase.reset });
           icon="delete_sweep"
           size="xs"
           color="grey-7"
-          title="清除所有预览图"
+          :title="t.clearAllPreviews"
           @click="showcase.clearPreviews"
         />
         <q-btn
@@ -65,7 +65,7 @@ defineExpose({ reset: showcase.reset });
           icon="refresh"
           size="xs"
           color="grey-7"
-          title="刷新"
+          :title="t.refresh"
           @click="showcase.load(true)"
         />
       </template>
@@ -76,7 +76,8 @@ defineExpose({ reset: showcase.reset });
       :loading-text="t.loadingContents"
     />
 
-    <template v-if="showcase.open.value && showcase.data.value">
+    <div v-if="showcase.open.value && showcase.error.value" class="showcase__error">{{ showcase.error.value }}</div>
+    <template v-if="showcase.open.value && showcase.listing.value">
       <FilterChipBar
         :options="filterOptions"
         :active="showcase.filter.value"
@@ -108,6 +109,10 @@ defineExpose({ reset: showcase.reset });
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.showcase__error {
+  color: $apple-red;
+  font-size: 11px;
 }
 .showcase__count {
   color: $color-secondary;

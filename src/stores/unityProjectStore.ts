@@ -1,37 +1,57 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Asset, UnityProjectFilter } from '../types/asset'
-import { unityProjectService, type UnityAssetProjectState } from '../services/unityProjectService'
+import type { UnityAssetProjectState, UnityProjectFilter } from '../types/asset'
+import { unityService } from '../services/unityService'
+import { modelFilesService } from '../services/modelFilesService'
+import { useAssetStore } from './assetStore'
 
+/** Link state between library models and the open Unity project, plus content duplicates. */
 export const useUnityProjectStore = defineStore('unityProject', () => {
   const projectPath = ref('')
   const syncing = ref(false)
-  const error = ref('')
+  const error = ref<unknown>(null)
   const filter = ref<UnityProjectFilter>('all')
   const states = ref<Record<string, UnityAssetProjectState>>({})
+  const scanningDuplicates = ref(false)
+  const duplicates = ref<Record<string, string[]>>({})
 
-  const isSynchronized = computed(() => projectPath.value.length > 0)
+  const models = () => useAssetStore().assets.filter((asset) => asset.assetKind === 'model')
 
-  async function synchronize(assets: Asset[]): Promise<void> {
+  async function synchronize(): Promise<void> {
     syncing.value = true
-    error.value = ''
+    error.value = null
     try {
-      const result = await unityProjectService.synchronize(assets)
+      const result = await unityService.synchronize(models())
       projectPath.value = result.projectPath
       states.value = Object.fromEntries(result.states)
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : String(cause)
-      throw cause
+      error.value = cause
     } finally {
       syncing.value = false
     }
   }
 
-  function getState(assetId: string): UnityAssetProjectState | null {
-    return states.value[assetId] ?? null
+  async function findDuplicates(): Promise<void> {
+    scanningDuplicates.value = true
+    try {
+      duplicates.value = await modelFilesService.findDuplicates(models())
+    } finally {
+      scanningDuplicates.value = false
+    }
   }
 
-  function setFilter(value: UnityProjectFilter): void { filter.value = value }
-
-  return { projectPath, syncing, error, filter, states, isSynchronized, synchronize, getState, setFilter }
+  return {
+    projectPath,
+    syncing,
+    error,
+    filter,
+    states,
+    scanningDuplicates,
+    isSynchronized: computed(() => projectPath.value.length > 0),
+    synchronize,
+    findDuplicates,
+    stateOf: (assetId: string): UnityAssetProjectState | null => states.value[assetId] ?? null,
+    duplicatesOf: (assetId: string): string[] => duplicates.value[assetId] ?? [],
+    setFilter: (value: UnityProjectFilter) => { filter.value = value },
+  }
 })

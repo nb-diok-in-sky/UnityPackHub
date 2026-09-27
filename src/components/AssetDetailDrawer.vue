@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from "vue";
 import type { Asset } from "../types/asset";
-import { useI18n } from "../services/i18n";
+import { useI18n } from "../i18n";
 import { useAssetDetailActions } from "../composables/useAssetDetailActions";
 import ShowcaseSection from "./detail/ShowcaseSection.vue";
 import ModelShowcaseSection from "./detail/ModelShowcaseSection.vue";
@@ -25,6 +25,8 @@ const modelShowcaseRef = ref<InstanceType<typeof ModelShowcaseSection> | null>(
 const previewsRef = ref<InstanceType<typeof UnityPreviewsSection> | null>(null);
 const isModel = computed(() => props.asset?.assetKind === "model");
 
+// flush: "post" so the section refs exist when the drawer opens from the closed state;
+// with the default pre-flush they are still null and Unity previews never loaded.
 watch(
   () => props.asset?.id,
   () => {
@@ -34,6 +36,7 @@ watch(
     previewsRef.value?.reset();
     if (props.asset) previewsRef.value?.loadPreviews();
   },
+  { flush: "post", immediate: true },
 );
 </script>
 
@@ -48,7 +51,7 @@ watch(
             :is-model="isModel"
             :is-favorite="asset.isFavorite"
             :is-importing="actions.isImporting.value"
-            :is-locating="actions.isLocatingInUnity.value"
+            :is-locating="actions.isLocating.value"
             :status="actions.status.value"
             :importing-label="t.importing"
             :import-label="t.importToUnity"

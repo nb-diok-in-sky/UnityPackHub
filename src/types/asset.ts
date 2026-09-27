@@ -2,30 +2,57 @@ export type AssetKind = 'package' | 'model'
 export type ModelCoverStatus = 'pending' | 'completed' | 'failed' | 'not-needed'
 export type ModelCoverFilter = 'all' | ModelCoverStatus
 
+/** Whether a cover image is stored in the `covers` table under the asset id. */
+export type CoverState = 'none' | 'stored'
+
+/** Render state of a model's automatic cover. Only present on model assets. */
+export interface ModelPreviewState {
+  /** Renderer version that produced the current cover; 0 = never rendered. */
+  version: number
+  error: string
+  /** False for files that are not worth rendering (animation clips, meshless files). */
+  eligible: boolean
+}
+
 export interface Asset {
   id: string
   name: string
   fileName: string
   filePath: string
   fileSize: number
-  thumbnailPath: string
-  modelPreviewVersion?: number
-  modelPreviewError?: string
-  modelPreviewEligible?: boolean
+  assetKind: AssetKind
+  cover: CoverState
+  modelPreview?: ModelPreviewState
+  /** Its scan folder could not be read in the last scan; hidden until the folder is back. */
+  offline?: boolean
   notes: string
   tagIds: string[]
   isFavorite: boolean
-  assetKind: AssetKind
   createdAt: number
   updatedAt: number
   lastUsedAt: number
 }
+
+/** Fields the user edits directly; changes to them are undoable. */
+export type AssetEdit = Partial<Pick<Asset, 'notes' | 'tagIds' | 'isFavorite'>>
 
 export interface Tag {
   id: string
   label: string
   color: string
   isSystem?: boolean
+}
+
+export interface AssetGroup {
+  id: string
+  name: string
+  icon: string
+  assetIds: string[]
+  order: number
+  createdAt: number
+  source?: 'manual' | 'classification'
+  sourceKey?: string
+  assetKind?: AssetKind
 }
 
 export type UnityLinkStatus = 'linked' | 'missing' | 'ambiguous' | 'unlinked'
@@ -52,95 +79,16 @@ export interface UnityProjectAsset {
   referencedBy: string[]
 }
 
-export interface UnityAssetInspectionIssue {
-  id: string
-  severity: 'info' | 'warning' | 'error'
-  message: string
+export interface UnityAssetProjectState {
+  link: UnityAssetLink | null
+  projectAsset: UnityProjectAsset | null
+  status: UnityLinkStatus
+  duplicateCandidates: UnityProjectAsset[]
 }
 
-export interface AssetGroup {
-  id: string
+export interface AssetStoreProduct {
+  packageId: string
   name: string
-  icon: string
-  assetIds: string[]
-  order: number
-  createdAt: number
-  source?: 'manual' | 'classification'
-  sourceKey?: string
-  assetKind?: AssetKind
-}
-
-export interface ClassificationSettings {
-  enabled: boolean
-  jsonPath: string
-}
-
-export interface ShaderAdapterSettings {
-  rulesPath: string
-}
-
-export interface ScanDirectory {
-  path: string
-  enabled: boolean
-}
-
-export type AppLocale = 'zh-CN' | 'en-US'
-export type AppTheme = 'light' | 'dark' | 'system'
-
-export interface QuickLink {
-  name: string
-  url: string
-  icon?: string
-}
-
-export interface UserSettings {
-  id: string
-  scanDirectories: ScanDirectory[]
-  unityEditorPath: string
-  cardSize: CardSize
-  sortBy: SortKey
-  sortOrder: SortOrder
-  locale: AppLocale
-  theme: AppTheme
-  quickLinks: QuickLink[]
-  classification: ClassificationSettings
-  shaderAdapters: ShaderAdapterSettings
-  defaultPipelineTagsInitialized?: boolean
-}
-
-export type CardSize = 'sm' | 'md' | 'lg'
-export type SortKey = 'name' | 'createdAt' | 'fileSize' | 'lastUsedAt'
-export type SortOrder = 'asc' | 'desc'
-
-export const CARD_SIZE_MAP: Record<CardSize, number> = {
-  sm: 160,
-  md: 220,
-  lg: 300,
-}
-
-export const DEFAULT_SETTINGS: UserSettings = {
-  id: 'user',
-  scanDirectories: [],
-  unityEditorPath: '',
-  cardSize: 'md',
-  sortBy: 'name',
-  sortOrder: 'asc',
-  locale: 'zh-CN',
-  theme: 'light',
-  quickLinks: [
-    { name: 'Unity Asset Store', url: 'https://assetstore.unity.com', icon: 'storefront' },
-    { name: 'Fab (Quixel)', url: 'https://www.fab.com', icon: 'public' },
-    { name: 'Sketchfab', url: 'https://sketchfab.com', icon: 'view_in_ar' },
-    { name: 'Itch.io', url: 'https://itch.io/game-assets', icon: 'sports_esports' },
-    { name: 'OpenGameArt', url: 'https://opengameart.org', icon: 'palette' },
-    { name: 'Kenney', url: 'https://kenney.nl', icon: 'extension' },
-  ],
-  classification: {
-    enabled: false,
-    jsonPath: '',
-  },
-  shaderAdapters: {
-    rulesPath: '',
-  },
-  defaultPipelineTagsInitialized: false,
+  productUrl: string
+  imageUrl: string
 }

@@ -1,27 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
+import { computed, watchEffect } from "vue";
 import type { Asset } from "../../types/asset";
-import { useThumbnailStore } from "../../stores/thumbnailStore";
+import { modelCoverStatus } from "../../domain/modelCover";
+import { useCoverStore } from "../../stores/coverStore";
 import { useUnityProjectStore } from "../../stores/unityProjectStore";
-import { useDuplicateAssetStore } from "../../stores/duplicateAssetStore";
-import { getModelCoverStatus } from "../../services/modelPreviewService";
-import { useI18n } from "../../services/i18n";
+import { useI18n } from "../../i18n";
 const props = defineProps<{ asset: Asset }>();
 const emit = defineEmits<{ favorite: [event: MouseEvent] }>();
-const thumbnails = useThumbnailStore();
+const covers = useCoverStore();
 const project = useUnityProjectStore();
-const duplicates = useDuplicateAssetStore();
-const { t } = useI18n();
-const src = computed(
-  () =>
-    thumbnails.getUrl(props.asset.id) ||
-    (props.asset.thumbnailPath.startsWith("data:")
-      ? props.asset.thumbnailPath
-      : ""),
-);
+const { t, tr } = useI18n();
+const src = computed(() => covers.url(props.asset.id) ?? "");
 const initial = computed(() => props.asset.name.trim().charAt(0).toUpperCase());
-const status = computed(() => getModelCoverStatus(props.asset));
-const unity = computed(() => project.getState(props.asset.id));
+const status = computed(() => modelCoverStatus(props.asset));
+const unity = computed(() => project.stateOf(props.asset.id));
 const statusText = computed(
   () =>
     ({
@@ -37,11 +29,10 @@ const statusIcon = {
   failed: "error",
   "not-needed": "remove_circle_outline",
 };
-async function loadThumbnail(): Promise<void> {
-  if (props.asset.thumbnailPath === "db") await thumbnails.load(props.asset.id);
-}
-onMounted(loadThumbnail);
-watch(() => [props.asset.id, props.asset.thumbnailPath], loadThumbnail);
+// Also re-runs when the cache evicts this cover, so a visible card never stays blank.
+watchEffect(() => {
+  if (props.asset.cover === "stored" && !covers.url(props.asset.id)) void covers.ensure(props.asset.id);
+});
 </script>
 <template>
   <div class="cover">
@@ -60,7 +51,7 @@ watch(() => [props.asset.id, props.asset.thumbnailPath], loadThumbnail);
       :class="`cover__unity--${unity?.status ?? 'unlinked'}`"
       :title="
         unity?.projectAsset?.sceneUsageCount
-          ? `当前场景使用 ${unity.projectAsset.sceneUsageCount} 次`
+          ? tr('unitySceneUsage', { count: unity.projectAsset.sceneUsageCount })
           : unity?.status
       "
     >
@@ -78,9 +69,9 @@ watch(() => [props.asset.id, props.asset.thumbnailPath], loadThumbnail);
       />
     </div>
     <div
-      v-if="duplicates.getDuplicateIds(asset.id).length"
+      v-if="project.duplicatesOf(asset.id).length"
       class="cover__duplicate"
-      title="发现内容完全相同的模型"
+ :title="t.duplicateContentFound"
     >
       <q-icon name="content_copy" size="12px" />
     </div>

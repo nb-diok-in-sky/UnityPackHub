@@ -2,7 +2,7 @@
 import { nextTick, ref, watch } from 'vue'
 import type { Asset } from '../../types/asset'
 import { useAssetStore } from '../../stores/assetStore'
-import { useI18n } from '../../services/i18n'
+import { useI18n } from '../../i18n'
 
 const props = defineProps<{ asset: Asset }>()
 const store = useAssetStore()
@@ -21,7 +21,7 @@ function start(): void {
 
 async function save(): Promise<void> {
   editing.value = false
-  if (value.value !== props.asset.notes) await store.updateAsset(props.asset.id, { notes: value.value })
+  await store.edit([props.asset.id], () => ({ notes: value.value }))
 }
 </script>
 

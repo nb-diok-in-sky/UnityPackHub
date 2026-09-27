@@ -1,30 +1,20 @@
 <script setup lang="ts">
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { fileService, JSON_FILTER } from '../../services/fileService'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { useI18n } from '../../services/i18n'
-import { SHADER_ADAPTER_TEMPLATE } from '../../services/shaderAdapterTemplate'
+import { useI18n } from '../../i18n'
+import { SHADER_ADAPTER_TEMPLATE } from '../../domain/shaderAdapterTemplate'
 
 const settingsStore = useSettingsStore()
 const { t } = useI18n()
 
 async function chooseRules(): Promise<void> {
-  const selected = await open({
-    directory: false,
-    multiple: false,
-    filters: [{ name: 'Shader adapter JSON', extensions: ['json'] }],
-  })
-  if (selected && typeof selected === 'string') {
-    await settingsStore.setShaderAdapterRulesPath(selected)
-  }
+  const selected = await fileService.pickFile([JSON_FILTER])
+  if (selected) await settingsStore.setShaderAdapterRulesPath(selected)
 }
 
 async function exportTemplate(): Promise<void> {
-  const selected = await save({
-    defaultPath: 'UnityPackHub-shader-adapter-template.json',
-    filters: [{ name: 'JSON', extensions: ['json'] }],
-  })
-  if (selected) await writeTextFile(selected, JSON.stringify(SHADER_ADAPTER_TEMPLATE, null, 2))
+  const selected = await fileService.pickSavePath('UnityPackHub-shader-adapter-template.json', [JSON_FILTER])
+  if (selected) await fileService.writeText(selected, JSON.stringify(SHADER_ADAPTER_TEMPLATE, null, 2))
 }
 </script>
 

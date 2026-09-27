@@ -1,45 +1,41 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAssetStore } from '../stores/assetStore'
+import { useBrowseStore } from '../stores/browseStore'
 import { useGroupStore } from '../stores/groupStore'
-import { useTagStore } from '../stores/tagStore'
-import { useI18n } from '../services/i18n'
+import { useI18n } from '../i18n'
 
 const assetStore = useAssetStore()
+const browse = useBrowseStore()
 const groupStore = useGroupStore()
-const tagStore = useTagStore()
 const { t } = useI18n()
 
 const classifications = computed(() =>
-  groupStore.groups.filter((group) =>
-    group.source === 'classification' && group.assetKind === 'model'
-  )
+  groupStore.classificationGroups.filter((group) => group.assetKind === 'model')
 )
 
 function selectClassification(id: string | null): void {
-  assetStore.setFavoritesOnly(false)
-  tagStore.setActiveTag(null)
-  groupStore.setActiveGroup(id)
+  browse.showGroup(id)
 }
 </script>
 
 <template>
-  <div v-if="assetStore.activeAssetKind === 'model'" class="classification-bar">
+  <div v-if="browse.kind === 'model'" class="classification-bar">
     <span class="classification-bar__label">{{ t.modelClassifications }}</span>
     <div v-if="classifications.length > 0" class="classification-bar__items">
       <button
         class="classification-bar__chip"
-        :class="{ 'classification-bar__chip--active': !groupStore.activeGroupId }"
+        :class="{ 'classification-bar__chip--active': !browse.activeGroupId }"
         @click="selectClassification(null)"
       >
         {{ t.allClassifications }}
-        <span>{{ assetStore.modelCount }}</span>
+        <span>{{ browse.statistics.model }}</span>
       </button>
       <button
         v-for="classification in classifications"
         :key="classification.id"
         class="classification-bar__chip"
-        :class="{ 'classification-bar__chip--active': groupStore.activeGroupId === classification.id }"
+        :class="{ 'classification-bar__chip--active': browse.activeGroupId === classification.id }"
         @click="selectClassification(classification.id)"
       >
         {{ classification.name }}

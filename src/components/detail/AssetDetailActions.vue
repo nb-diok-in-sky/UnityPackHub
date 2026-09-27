@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from "../../i18n";
+const { t } = useI18n();
 defineProps<{
   isModel: boolean;
   isFavorite: boolean;
@@ -59,7 +61,7 @@ defineEmits<{
       dense
       no-caps
       icon="my_location"
-      label="在 Unity 中定位"
+      :label="t.locateInUnity"
       color="primary"
       class="action-button"
       :loading="isLocating"
@@ -70,7 +72,7 @@ defineEmits<{
       dense
       no-caps
       icon="storefront"
-      label="Unity 商店搜索"
+      :label="t.searchAssetStore"
       color="grey-7"
       class="action-button"
       @click="$emit('searchStore')"

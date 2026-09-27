@@ -2,10 +2,10 @@
 import BatchDeleteDialog from './batch/BatchDeleteDialog.vue'
 import BatchTagMenu from './batch/BatchTagMenu.vue'
 import { useBatchAssetActions } from '../composables/useBatchAssetActions'
-import { useI18n } from '../services/i18n'
+import { useI18n } from '../i18n'
 
 const {
-  assetStore,
+  browse,
   selectedCount,
   canUndo,
   deleteDialogOpen,
@@ -28,14 +28,14 @@ const { t } = useI18n()
           dense
           color="white"
           dark
-          @update:model-value="assetStore.clearSelection"
+          @update:model-value="browse.clearSelection"
         />
         <span class="multi-toolbar__count">{{ selectedCount }} {{ t.selected }}</span>
         <q-btn
           flat dense size="sm"
           class="multi-toolbar__btn-text"
           :label="t.selectAll"
-          @click="assetStore.selectAll"
+          @click="browse.selectAll"
         />
       </div>
 
@@ -48,7 +48,7 @@ const { t } = useI18n()
         <q-btn flat dense round icon="delete_outline" size="sm" class="multi-toolbar__btn multi-toolbar__btn--danger" :title="t.delete" @click="deleteDialogOpen = true" />
         <div class="multi-toolbar__divider" />
         <q-btn flat dense round icon="undo" size="sm" class="multi-toolbar__btn" :disable="!canUndo" :title="`${t.undo} (Ctrl+Z)`" @click="undo" />
-        <q-btn flat dense round icon="close" size="sm" class="multi-toolbar__btn" :title="t.cancel" @click="assetStore.clearSelection" />
+        <q-btn flat dense round icon="close" size="sm" class="multi-toolbar__btn" :title="t.cancel" @click="browse.clearSelection" />
       </div>
 
       <BatchDeleteDialog v-model="deleteDialogOpen" :count="selectedCount" @confirm="deleteSelected" />

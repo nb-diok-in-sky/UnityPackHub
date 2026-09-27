@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from "../../services/i18n";
+import { useI18n } from "../../i18n";
 defineProps<{ max: number; missing: number; currentView: number }>();
 const open = defineModel<boolean>("open", { required: true });
 const limit = defineModel<number>("limit", { required: true });

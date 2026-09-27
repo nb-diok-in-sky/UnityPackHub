@@ -1,134 +1,39 @@
+// Model categories generated from an external metadata table (see Settings > Classification).
+import { v4 as uuid } from 'uuid'
 import type { Asset, AssetGroup } from '../types/asset'
-import { groupRepository } from './repositories'
-import { commands, type AssetMetadata } from './tauriCommands'
-import { v4 as uuidv4 } from 'uuid'
-import { normalizePath } from '../utils/pathIdentity'
+import { classifyModels, type Classification } from '../domain/classification'
+import { backend } from '../platform/backend'
+import { groupRepository } from '../data/repositories'
 
-const CLASSIFICATION_SOURCE = 'classification' as const
-const DEFAULT_GROUP_ICON = 'category'
+const SOURCE = 'classification' as const
+const ICON = 'category'
 
-export interface ClassificationSyncResult {
-  matchedAssetCount: number
-  categoryCount: number
-  unmatchedAssetCount: number
-}
+export const classificationService = {
+  /** Rebuilds the generated category groups; manual groups are never touched. */
+  async sync(jsonPath: string, assets: Asset[]): Promise<Classification> {
+    const classification = classifyModels(await backend.readAssetMetadataTable(jsonPath), assets)
+    const existing = await groupRepository.getAll()
+    const generated = new Map(existing
+      .filter((group) => group.source === SOURCE && group.sourceKey)
+      .map((group) => [group.sourceKey as string, group]))
+    const firstOrder = existing.filter((group) => group.source !== SOURCE).reduce((max, group) => Math.max(max, group.order), 0) + 1
 
-function normalizeName(name: string): string {
-  return name.trim().toLocaleLowerCase()
-}
-
-function categoryOf(entry: AssetMetadata): string | null {
-  const category = entry.inferredObject?.trim()
-  return category ? category : null
-}
-
-function buildNameIndex(entries: AssetMetadata[]): Map<string, AssetMetadata | null> {
-  const index = new Map<string, AssetMetadata | null>()
-  for (const entry of entries) {
-    const key = normalizeName(entry.originalName)
-    if (!key) continue
-    if (index.has(key)) {
-      index.set(key, null)
-    } else {
-      index.set(key, entry)
+    const categories = [...classification.assetIdsByCategory.keys()].sort((left, right) => left.localeCompare(right))
+    for (const [index, category] of categories.entries()) {
+      const assetIds = classification.assetIdsByCategory.get(category) ?? []
+      const current = generated.get(category)
+      generated.delete(category)
+      const group: AssetGroup = current
+        ? { ...current, name: category, assetIds, order: firstOrder + index }
+        : { id: uuid(), name: category, icon: ICON, assetIds, order: firstOrder + index, createdAt: Date.now(), source: SOURCE, sourceKey: category, assetKind: 'model' }
+      await groupRepository.put(group)
     }
-  }
-  return index
-}
-
-export class ClassificationService {
-  async sync(jsonPath: string, assets: Asset[]): Promise<ClassificationSyncResult> {
-    const entries = await commands.readAssetMetadataTable(jsonPath)
-    if (entries.length === 0) {
-      throw new Error('The classification table contains no assets')
-    }
-    const categorizedEntries = entries.filter((entry) => categoryOf(entry) !== null)
-    if (categorizedEntries.length === 0) {
-      throw new Error('The classification table contains no inferredObject categories')
-    }
-    const pathIndex = new Map(
-      categorizedEntries
-        .filter((entry) => entry.path.trim().length > 0)
-        .map((entry) => [normalizePath(entry.path).toLocaleLowerCase(), entry]),
-    )
-    const nameIndex = buildNameIndex(categorizedEntries)
-    const assetIdsByCategory = new Map<string, string[]>()
-    let matchedAssetCount = 0
-    let modelAssetCount = 0
-
-    for (const asset of assets) {
-      if (asset.assetKind !== 'model') continue
-      modelAssetCount += 1
-      const entry = pathIndex.get(normalizePath(asset.filePath).toLocaleLowerCase())
-        ?? nameIndex.get(normalizeName(asset.fileName))
-      if (!entry) continue
-      const category = categoryOf(entry)
-      if (!category) continue
-      const assetIds = assetIdsByCategory.get(category) ?? []
-      assetIds.push(asset.id)
-      assetIdsByCategory.set(category, assetIds)
-      matchedAssetCount += 1
-    }
-
-    await this.replaceGeneratedGroups(assetIdsByCategory)
-    return {
-      matchedAssetCount,
-      categoryCount: assetIdsByCategory.size,
-      unmatchedAssetCount: modelAssetCount - matchedAssetCount,
-    }
-  }
+    await groupRepository.delete([...generated.values()].map((group) => group.id))
+    return classification
+  },
 
   async clear(): Promise<void> {
     const groups = await groupRepository.getAll()
-    await Promise.all(
-      groups
-        .filter((group) => group.source === CLASSIFICATION_SOURCE)
-        .map((group) => groupRepository.delete(group.id)),
-    )
-  }
-
-  private async replaceGeneratedGroups(assetIdsByCategory: Map<string, string[]>): Promise<void> {
-    const existingGroups = await groupRepository.getAll()
-    const generatedByKey = new Map(
-      existingGroups
-        .filter((group) => group.source === CLASSIFICATION_SOURCE && group.sourceKey)
-        .map((group) => [group.sourceKey as string, group]),
-    )
-    const maxManualOrder = existingGroups
-      .filter((group) => group.source !== CLASSIFICATION_SOURCE)
-      .reduce((max, group) => Math.max(max, group.order), 0)
-    const categories = [...assetIdsByCategory.keys()].sort((a, b) => a.localeCompare(b))
-
-    for (let index = 0; index < categories.length; index += 1) {
-      const category = categories[index]
-      if (!category) continue
-      const assetIds = assetIdsByCategory.get(category) ?? []
-      const existing = generatedByKey.get(category)
-      if (existing) {
-        await groupRepository.update(existing.id, {
-          name: category,
-          assetIds,
-          order: maxManualOrder + index + 1,
-        })
-        generatedByKey.delete(category)
-      } else {
-        const group: AssetGroup = {
-          id: uuidv4(),
-          name: category,
-          icon: DEFAULT_GROUP_ICON,
-          assetIds,
-          order: maxManualOrder + index + 1,
-          createdAt: Date.now(),
-          source: CLASSIFICATION_SOURCE,
-          sourceKey: category,
-          assetKind: 'model',
-        }
-        await groupRepository.create(group)
-      }
-    }
-
-    await Promise.all([...generatedByKey.values()].map((group) => groupRepository.delete(group.id)))
-  }
+    await groupRepository.delete(groups.filter((group) => group.source === SOURCE).map((group) => group.id))
+  },
 }
-
-export const classificationService = new ClassificationService()

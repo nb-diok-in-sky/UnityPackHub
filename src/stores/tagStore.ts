@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+import { v4 as uuid } from 'uuid'
 import type { Tag } from '../types/asset'
-import { settingsRepository, tagRepository } from '../services/repositories'
-import { v4 as uuidv4 } from 'uuid'
-import { eventBus } from '../services/eventBus'
+import { tagRecords } from '../services/organizationService'
+import { useSettingsStore } from './settingsStore'
 
-const SYSTEM_TAGS: Tag[] = [
+/** Render-pipeline tags created once on first launch; users may rename or delete them. */
+const PIPELINE_TAGS: Tag[] = [
   { id: 'system-pipeline-built-in', label: 'Built-in', color: '#34C759' },
   { id: 'system-pipeline-urp', label: 'URP', color: '#007AFF' },
   { id: 'system-pipeline-hdrp', label: 'HDRP', color: '#AF52DE' },
@@ -13,86 +14,49 @@ const SYSTEM_TAGS: Tag[] = [
 
 export const useTagStore = defineStore('tags', () => {
   const tags = ref<Tag[]>([])
-  const activeTagId = ref<string | null>(null)
+  const tagMap = computed(() => new Map(tags.value.map((tag) => [tag.id, tag])))
 
-  const activeTag = computed(() =>
-    tags.value.find((t) => t.id === activeTagId.value) ?? null
-  )
-
-  const tagMap = computed(() => {
-    const map = new Map<string, Tag>()
-    for (const tag of tags.value) {
-      map.set(tag.id, tag)
-    }
-    return map
-  })
+  function sort(): void {
+    tags.value.sort((left, right) => left.label.localeCompare(right.label))
+  }
 
   async function load(): Promise<void> {
-    tags.value = await tagRepository.getAll()
-    const settings = await settingsRepository.get()
-    if (!settings.defaultPipelineTagsInitialized) {
-      for (const defaultTag of SYSTEM_TAGS) {
-        const existing = tags.value.find((tag) => tag.id === defaultTag.id)
-          ?? tags.value.find((tag) => tag.label.toLowerCase() === defaultTag.label.toLowerCase())
-        if (existing) {
-          if (existing.isSystem) {
-            await tagRepository.update(existing.id, { isSystem: false })
-            existing.isSystem = false
-          }
-          continue
-        }
-        await tagRepository.create(defaultTag)
-        tags.value.push(defaultTag)
+    tags.value = await tagRecords.getAll()
+    const settings = useSettingsStore()
+    if (!settings.settings.defaultPipelineTagsInitialized) {
+      for (const tag of PIPELINE_TAGS) {
+        const exists = tags.value.some((current) => current.id === tag.id || current.label.toLowerCase() === tag.label.toLowerCase())
+        if (exists) continue
+        await tagRecords.save(tag)
+        tags.value.push({ ...tag })
       }
-      settings.defaultPipelineTagsInitialized = true
-      await settingsRepository.save(settings)
+      await settings.update((draft) => { draft.defaultPipelineTagsInitialized = true })
     }
-    tags.value.sort((a, b) => a.label.localeCompare(b.label))
+    sort()
   }
 
   async function create(label: string, color: string): Promise<Tag> {
-    const tag: Tag = { id: uuidv4(), label, color }
-    await tagRepository.create(tag)
+    const tag: Tag = { id: uuid(), label, color }
+    await tagRecords.save(tag)
     tags.value.push(tag)
-    eventBus.emit('tag:created', { id: tag.id })
+    sort()
     return tag
   }
 
-  async function update(id: string, data: Partial<Tag>): Promise<void> {
-    await tagRepository.update(id, data)
-    const index = tags.value.findIndex((t) => t.id === id)
-    if (index !== -1) {
-      tags.value[index] = Object.assign({}, tags.value[index], data)
-    }
+  async function update(id: string, patch: Pick<Tag, 'label' | 'color'>): Promise<void> {
+    const current = tagMap.value.get(id)
+    if (!current) return
+    const next = { ...current, ...patch }
+    await tagRecords.save(next)
+    tags.value = tags.value.map((tag) => (tag.id === id ? next : tag))
+    sort()
   }
 
+  /** Deletes the tag everywhere; the caller reloads assets afterwards. */
   async function remove(id: string): Promise<void> {
-    await tagRepository.delete(id)
-    tags.value = tags.value.filter((t) => t.id !== id)
-    if (activeTagId.value === id) {
-      activeTagId.value = null
-    }
-    eventBus.emit('tag:deleted', { id })
+    await tagRecords.delete(id)
+    tags.value = tags.value.filter((tag) => tag.id !== id)
   }
 
-  function setActiveTag(id: string | null): void {
-    activeTagId.value = id
-  }
-
-  function getTagById(id: string): Tag | undefined {
-    return tagMap.value.get(id)
-  }
-
-  return {
-    tags,
-    activeTagId,
-    activeTag,
-    tagMap,
-    load,
-    create,
-    update,
-    remove,
-    setActiveTag,
-    getTagById,
-  }
+  return { tags, tagMap, load, create, update, remove, getTagById: (id: string) => tagMap.value.get(id) }
 })

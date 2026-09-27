@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import type { Asset } from "../../types/asset";
 import { formatBytes } from "../../utils/formatBytes";
+import { useI18n } from "../../i18n";
+const { locale } = useI18n();
 
 const props = defineProps<{
   asset: Asset;
@@ -16,7 +18,7 @@ const rows = computed(() => [
   [props.fileSizeLabel, formatBytes(props.asset.fileSize)],
   [
     props.dateLabel,
-    new Date(props.asset.createdAt).toLocaleDateString("zh-CN"),
+    new Date(props.asset.createdAt).toLocaleDateString(locale.value),
   ],
 ]);
 </script>

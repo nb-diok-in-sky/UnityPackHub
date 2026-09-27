@@ -1,48 +1,54 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Asset } from "../types/asset";
+import { addTag, setFavorite } from "../domain/assetChanges";
+import { fileService } from "../services/fileService";
 import { useAssetStore } from "../stores/assetStore";
-import { useTagStore } from "../stores/tagStore";
+import { useBrowseStore } from "../stores/browseStore";
 import { useGroupStore } from "../stores/groupStore";
-import { importToUnity, openFileLocation } from "../services/unityImporter";
+import { useTagStore } from "../stores/tagStore";
+import { useI18n } from "../i18n";
+import { errorMessage, notify } from "../ui/feedback";
 import AssetCardCover from "./asset/AssetCardCover.vue";
 import AssetCardMenu from "./asset/AssetCardMenu.vue";
 import AssetCardBody from "./asset/AssetCardBody.vue";
 const props = defineProps<{ asset: Asset; width: number; height: number }>();
-const emit = defineEmits<{
-  click: [asset: Asset];
-  "update:favorite": [id: string];
-}>();
+const emit = defineEmits<{ open: [asset: Asset] }>();
 const assets = useAssetStore();
+const browse = useBrowseStore();
 const tags = useTagStore();
 const groups = useGroupStore();
-const selected = computed(() => assets.selectedIds.has(props.asset.id));
+const { tr } = useI18n();
+const selected = computed(() => browse.selectedIds.has(props.asset.id));
 const assetTags = computed(() =>
   props.asset.tagIds
     .map((id) => tags.getTagById(id))
     .filter((tag): tag is NonNullable<typeof tag> => !!tag),
 );
 const manualGroups = computed(() =>
-  groups.groups.filter(
+  groups.manualGroups.filter(
     (group) =>
-      group.source !== "classification" &&
-      (group.assetKind === undefined ||
-        group.assetKind === props.asset.assetKind),
+      group.assetKind === undefined ||
+      group.assetKind === props.asset.assetKind,
   ),
 );
 function click(event: MouseEvent) {
-  if (assets.paintingTagId) {
-    assets.paintTag(props.asset.id);
-    return;
-  }
-  if (event.shiftKey) assets.rangeSelect(props.asset.id);
-  else if (event.ctrlKey || event.metaKey)
-    assets.toggleSelection(props.asset.id);
-  else emit("click", props.asset);
+  if (browse.paintingTagId) void assets.edit([props.asset.id], addTag(browse.paintingTagId));
+  else if (event.shiftKey) browse.selectRange(props.asset.id);
+  else if (event.ctrlKey || event.metaKey) browse.toggleSelected(props.asset.id);
+  else emit("open", props.asset);
 }
-function favorite(event?: MouseEvent) {
+async function importToUnity() {
+  if (browse.paintingTagId) return;
+  try {
+    await assets.importToUnity(props.asset);
+  } catch (error) {
+    notify.error(tr("importFailed", { reason: errorMessage(error) }));
+  }
+}
+function toggleFavorite(event?: MouseEvent) {
   event?.stopPropagation();
-  emit("update:favorite", props.asset.id);
+  void assets.edit([props.asset.id], setFavorite(!props.asset.isFavorite));
 }
 </script>
 <template>
@@ -50,19 +56,19 @@ function favorite(event?: MouseEvent) {
     class="card"
     :class="{
       'card--selected': selected,
-      'card--painting': !!assets.paintingTagId,
+      'card--painting': !!browse.paintingTagId,
     }"
     :style="{ width: `${width}px`, height: `${height}px` }"
     @click="click"
-    @dblclick.prevent="importToUnity(asset.filePath)"
+    @dblclick.prevent="importToUnity"
   >
-    <AssetCardCover :asset="asset" @favorite="favorite" /><AssetCardMenu
+    <AssetCardCover :asset="asset" @favorite="toggleFavorite" /><AssetCardMenu
       :asset="asset"
       :groups="manualGroups"
-      @open="importToUnity(asset.filePath)"
-      @reveal="openFileLocation(asset.filePath)"
-      @favorite="favorite()"
-      @group="groups.addAsset($event, asset.id)"
+      @open="importToUnity"
+      @reveal="fileService.reveal(asset.filePath)"
+      @favorite="toggleFavorite()"
+      @group="groups.addAssets($event, [asset.id])"
     /><AssetCardBody :asset="asset" :tags="assetTags" />
   </article>
 </template>

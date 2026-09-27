@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AssetMetadata } from "../../services/tauriCommands";
-import { useI18n } from "../../services/i18n";
+import type { AssetMetadata } from "../../platform/backend";
+import { useI18n } from "../../i18n";
 defineProps<{ metadata: AssetMetadata }>();
 const { t } = useI18n();
 </script>

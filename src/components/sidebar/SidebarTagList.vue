@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { Tag } from "../../types/asset";
+import { useI18n } from "../../i18n";
+
+const { t } = useI18n();
 
 defineProps<{
   tags: Tag[];
@@ -48,7 +51,7 @@ defineEmits<{
         size="8px"
         class="paint-button"
         :class="{ 'paint-button--active': paintingId === tag.id }"
-        :title="paintingId === tag.id ? '退出涂抹模式' : '涂抹赋予标签'"
+        :title="paintingId === tag.id ? t.stopTagPaint : t.startTagPaint"
         @click.stop="$emit('paint', tag.id)"
       />
     </div>

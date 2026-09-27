@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from '../../services/i18n'
+import { useI18n } from '../../i18n'
 
 defineProps<{ count: number }>()
 const model = defineModel<boolean>({ required: true })

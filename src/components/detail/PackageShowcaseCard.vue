@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PackageAssetEntry } from "../../services/coverFetcher";
+import type { PackageAssetEntry } from "../../platform/backend";
 
 const props = defineProps<{
   entry: PackageAssetEntry;
@@ -34,13 +34,13 @@ function drag(event: DragEvent): void {
       />
       <q-icon
         v-else
-        :name="icons[entry.asset_type] ?? 'insert_drive_file'"
+        :name="icons[entry.assetType] ?? 'insert_drive_file'"
         size="32px"
         color="grey-5"
       />
       <span
-        :class="`card__badge card__badge--${entry.asset_type.toLowerCase()}`"
-        >{{ entry.asset_type }}</span
+        :class="`card__badge card__badge--${entry.assetType.toLowerCase()}`"
+        >{{ entry.assetType }}</span
       >
     </div>
     <div class="card__name" :title="entry.filename">{{ entry.filename }}</div>

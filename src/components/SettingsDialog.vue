@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from '../services/i18n'
+import { useI18n } from '../i18n'
 import GeneralSettings from './settings/GeneralSettings.vue'
 import LibrarySettings from './settings/LibrarySettings.vue'
 import QuickLinkSettings from './settings/QuickLinkSettings.vue'

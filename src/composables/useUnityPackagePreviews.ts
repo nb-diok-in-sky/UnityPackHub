@@ -1,51 +1,42 @@
-import { ref } from "vue";
-import type { Asset } from "../types/asset";
-import {
-  getPackagePreviews,
-  readPreviewImage,
-  type PackagePreviews,
-  type PreviewEntry,
-} from "../services/unityImporter";
-import { getPackagePreviewKey } from "../services/packagePreviewIdentity";
-import { useAssetStore } from "../stores/assetStore";
+import { ref } from 'vue'
+import type { Asset } from '../types/asset'
+import type { RenderedPreview, RenderedPreviews } from '../platform/backend'
+import { packageService } from '../services/packageService'
+import { coverService } from '../services/coverService'
+import { useAssetStore } from '../stores/assetStore'
+
+/** Previews Unity rendered for a package earlier (from its manifest). */
 export function useUnityPackagePreviews(asset: () => Asset) {
-  const assets = useAssetStore();
-  const data = ref<PackagePreviews | null>(null);
-  const loading = ref(false);
-  const images = ref<Record<string, string>>({});
-  const selected = ref<PreviewEntry | null>(null);
-  async function load() {
-    loading.value = true;
+  const assets = useAssetStore()
+  const previews = ref<RenderedPreviews | null>(null)
+  const loading = ref(false)
+  const selected = ref<RenderedPreview | null>(null)
+  let generation = 0
+
+  async function load(): Promise<void> {
+    const current = ++generation
+    loading.value = true
     try {
-      data.value = await getPackagePreviews(
-        getPackagePreviewKey(asset().filePath),
-      );
-      const values: Record<string, string> = {};
-      if (data.value)
-        for (const entry of data.value.entries) {
-          const image = await readPreviewImage(
-            data.value.preview_dir,
-            entry.preview,
-          );
-          if (image) values[entry.preview] = image;
-        }
-      images.value = values;
+      const result = await packageService.renderedPreviews(asset().filePath)
+      if (current === generation) previews.value = result
+    } catch {
+      if (current === generation) previews.value = null
     } finally {
-      loading.value = false;
+      if (current === generation) loading.value = false
     }
   }
-  async function useAsCover(entry: PreviewEntry) {
-    if (!data.value) return;
-    const image =
-      images.value[entry.preview] ??
-      (await readPreviewImage(data.value.preview_dir, entry.preview));
-    if (image) await assets.updateAsset(asset().id, { thumbnailPath: image });
+
+  async function useAsCover(entry: RenderedPreview): Promise<void> {
+    const image = previews.value?.images[entry.preview]
+    if (image) await assets.setCover(asset(), coverService.imageFromDataUrl(image))
   }
-  function reset() {
-    data.value = null;
-    loading.value = false;
-    images.value = {};
-    selected.value = null;
+
+  function reset(): void {
+    generation++
+    previews.value = null
+    loading.value = false
+    selected.value = null
   }
-  return { data, loading, images, selected, load, useAsCover, reset };
+
+  return { previews, loading, selected, load, useAsCover, reset }
 }

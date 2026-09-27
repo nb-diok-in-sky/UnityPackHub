@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { AssetStoreProduct } from '../../services/unityAssetStoreClient'
+import type { AssetStoreProduct } from '../../types/asset'
+import { useI18n } from '../../i18n'
 
 defineProps<{
   modelValue: boolean
@@ -15,28 +16,29 @@ defineEmits<{
   resolve: []
   apply: []
 }>()
+const { t } = useI18n()
 </script>
 
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
     <q-card class="official-cover-dialog">
       <q-card-section>
-        <div class="text-h6">获取官方商城封面</div>
-        <div class="hint">先在 Unity Asset Store 中确认正确商品，再复制商品详情页链接。</div>
+        <div class="text-h6">{{ t.officialCoverTitle }}</div>
+        <div class="hint">{{ t.officialCoverHint }}</div>
       </q-card-section>
 
       <q-card-section class="content">
-        <q-btn outline no-caps icon="search" label="打开官方搜索" color="primary" @click="$emit('search')" />
+        <q-btn outline no-caps icon="search" :label="t.officialCoverSearch" color="primary" @click="$emit('search')" />
         <div class="url-row">
           <q-input
             :model-value="productUrl"
             outlined dense clearable class="url-input"
-            label="Unity Asset Store 商品链接"
+            :label="t.officialCoverUrl"
             placeholder="https://assetstore.unity.com/packages/..."
             @update:model-value="$emit('update:productUrl', String($event ?? ''))"
             @keyup.enter="$emit('resolve')"
           />
-          <q-btn unelevated no-caps label="读取" color="primary" :loading="loading" @click="$emit('resolve')" />
+          <q-btn unelevated no-caps :label="t.officialCoverResolve" color="primary" :loading="loading" @click="$emit('resolve')" />
         </div>
 
         <div v-if="error" class="error-message">
@@ -48,15 +50,15 @@ defineEmits<{
           <img :src="product.imageUrl" :alt="product.name" />
           <div class="candidate__info">
             <strong>{{ product.name }}</strong>
-            <span>商品 ID：{{ product.packageId }}</span>
+            <span>{{ t.officialCoverProductId }}{{ product.packageId }}</span>
           </div>
         </div>
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn flat label="取消" color="grey" @click="$emit('update:modelValue', false)" />
+        <q-btn flat :label="t.cancel" color="grey" @click="$emit('update:modelValue', false)" />
         <q-btn
-          unelevated label="使用此封面" color="primary"
+          unelevated :label="t.officialCoverApply" color="primary"
           :disable="!product || loading" :loading="loading" @click="$emit('apply')"
         />
       </q-card-actions>

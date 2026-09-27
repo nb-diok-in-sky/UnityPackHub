@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTagStore } from '../../stores/tagStore'
-import { useI18n } from '../../services/i18n'
+import { useI18n } from '../../i18n'
 
 const emit = defineEmits<{
   add: [tagId: string]

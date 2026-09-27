@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { PreviewEntry } from "../../services/unityImporter";
-defineProps<{ entry: PreviewEntry; src: string | undefined }>();
+import type { RenderedPreview } from "../../platform/backend";
+defineProps<{ entry: RenderedPreview; src: string | undefined }>();
 defineEmits<{ open: []; cover: [] }>();
 </script>
 <template>

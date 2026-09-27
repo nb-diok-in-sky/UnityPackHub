@@ -1,32 +1,31 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { Asset } from '../../types/asset'
+import { unityService } from '../../services/unityService'
 import { useAssetStore } from '../../stores/assetStore'
 import { useUnityProjectStore } from '../../stores/unityProjectStore'
-import { unityProjectService } from '../../services/unityProjectService'
-import { useDuplicateAssetStore } from '../../stores/duplicateAssetStore'
+import { unityErrorText } from '../../composables/unityErrorText'
+import { useI18n } from '../../i18n'
+import { notify } from '../../ui/feedback'
 
 const props = defineProps<{ asset: Asset }>()
-const assetStore = useAssetStore()
-const projectStore = useUnityProjectStore()
-const duplicateStore = useDuplicateAssetStore()
+const assets = useAssetStore()
+const project = useUnityProjectStore()
+const { t, tr } = useI18n()
 const locatingPath = ref('')
-const state = computed(() => projectStore.getState(props.asset.id))
-const duplicateAssets = computed(() => duplicateStore.getDuplicateIds(props.asset.id)
-  .map((id) => assetStore.assets.find((asset) => asset.id === id)).filter(Boolean))
+const state = computed(() => project.stateOf(props.asset.id))
+const duplicateAssets = computed(() => project.duplicatesOf(props.asset.id)
+  .map((id) => assets.byId.get(id)).filter((asset): asset is Asset => !!asset))
 const statusLabel = computed(() => ({
-  linked: '已关联到 Unity 项目', ambiguous: '发现多个同名候选',
-  missing: '原有 GUID 关联已失效', unlinked: 'Unity 项目中未找到',
+  linked: t.unityLinked, ambiguous: t.unityAmbiguous, missing: t.unityMissing, unlinked: t.unityUnlinked,
 })[state.value?.status ?? 'unlinked'])
-
-async function synchronize(): Promise<void> {
-  try { await projectStore.synchronize(assetStore.assets) } catch { /* displayed by store */ }
-}
+const errorText = computed(() => (project.error ? unityErrorText(project.error) : ''))
 
 async function locate(path: string): Promise<void> {
-  if (!projectStore.projectPath || locatingPath.value) return
+  if (!project.projectPath || locatingPath.value) return
   locatingPath.value = path
-  try { await unityProjectService.highlightProjectAsset(projectStore.projectPath, path) }
+  try { await unityService.highlightProjectPath(project.projectPath, path) }
+  catch (error) { notify.error(unityErrorText(error)) }
   finally { locatingPath.value = '' }
 }
 </script>
@@ -34,35 +33,35 @@ async function locate(path: string): Promise<void> {
 <template>
   <section class="unity-project-panel">
     <div class="unity-project-panel__header">
-      <span class="unity-project-panel__title">Unity 项目状态</span>
-      <q-btn flat dense no-caps icon="sync" label="同步" :loading="projectStore.syncing" @click="synchronize" />
+      <span class="unity-project-panel__title">{{ t.unityProjectStatus }}</span>
+      <q-btn flat dense no-caps icon="sync" :label="t.synchronize" :loading="project.syncing" @click="project.synchronize" />
     </div>
-    <div v-if="projectStore.error" class="unity-project-panel__error">{{ projectStore.error }}</div>
+    <div v-if="errorText" class="unity-project-panel__error">{{ errorText }}</div>
     <template v-else>
       <div class="unity-project-panel__status" :class="`unity-project-panel__status--${state?.status ?? 'unlinked'}`">{{ statusLabel }}</div>
       <div v-if="state?.projectAsset" class="unity-project-panel__details">
         <span>GUID</span><code>{{ state.projectAsset.guid }}</code>
-        <span>项目路径</span><span>{{ state.projectAsset.path }}</span>
-        <span>资源类型</span><span>{{ state.projectAsset.assetType }}</span>
-        <span>当前场景</span><span>{{ state.projectAsset.sceneUsageCount > 0 ? `使用 ${state.projectAsset.sceneUsageCount} 次` : '未使用' }}</span>
+        <span>{{ t.unityProjectPath }}</span><span>{{ state.projectAsset.path }}</span>
+        <span>{{ t.unityAssetType }}</span><span>{{ state.projectAsset.assetType }}</span>
+        <span>{{ t.unityCurrentScene }}</span><span>{{ state.projectAsset.sceneUsageCount > 0 ? tr('unitySceneUsage', { count: state.projectAsset.sceneUsageCount }) : t.unityNotUsed }}</span>
       </div>
       <div v-if="state?.duplicateCandidates.length" class="unity-project-panel__warning">
-        同名资源：{{ state.duplicateCandidates.map((item) => item.path).join('、') }}
+        {{ t.unitySameName }}{{ state.duplicateCandidates.map((item) => item.path).join('、') }}
       </div>
       <div v-if="state?.projectAsset?.dependencies.length" class="unity-project-panel__links">
-        <span class="unity-project-panel__title">直接依赖</span>
+        <span class="unity-project-panel__title">{{ t.unityDependencies }}</span>
         <button v-for="path in state.projectAsset.dependencies" :key="path" @click="locate(path)">{{ path }}</button>
       </div>
       <div v-if="state?.projectAsset?.referencedBy.length" class="unity-project-panel__links">
-        <span class="unity-project-panel__title">被以下资源引用</span>
+        <span class="unity-project-panel__title">{{ t.unityReferencedBy }}</span>
         <button v-for="path in state.projectAsset.referencedBy" :key="path" @click="locate(path)">{{ path }}</button>
       </div>
       <div class="unity-project-panel__header">
-        <span class="unity-project-panel__title">内容重复检测</span>
-        <q-btn flat dense no-caps icon="fingerprint" label="检测" :loading="duplicateStore.scanning" @click="duplicateStore.scan(assetStore.assets)" />
+        <span class="unity-project-panel__title">{{ t.duplicateDetection }}</span>
+        <q-btn flat dense no-caps icon="fingerprint" :label="t.detect" :loading="project.scanningDuplicates" @click="project.findDuplicates" />
       </div>
       <div v-if="duplicateAssets.length" class="unity-project-panel__warning">
-        发现相同内容：{{ duplicateAssets.map((asset) => asset?.filePath).join('、') }}
+        {{ t.duplicateContent }}{{ duplicateAssets.map((asset) => asset.filePath).join('、') }}
       </div>
     </template>
   </section>

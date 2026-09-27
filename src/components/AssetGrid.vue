@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Asset } from '../types/asset'
-import { CARD_SIZE_MAP } from '../types/asset'
-import { useAssetStore } from '../stores/assetStore'
+import { CARD_SIZE_MAP } from '../domain/settings'
+import { useBrowseStore } from '../stores/browseStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import { useSettingsStore } from '../stores/settingsStore'
-import { useI18n } from '../services/i18n'
+import { useUnityProjectStore } from '../stores/unityProjectStore'
+import { useI18n } from '../i18n'
 import AssetCard from './AssetCard.vue'
 
 const CARD_GAP = 16
@@ -12,8 +14,10 @@ const CARD_BODY_HEIGHT = 92
 const OVERSCAN_ROWS = 3
 
 const emit = defineEmits<{ 'select-asset': [asset: Asset] }>()
-const assetStore = useAssetStore()
+const browse = useBrowseStore()
+const library = useLibraryStore()
 const settingsStore = useSettingsStore()
+const projectStore = useUnityProjectStore()
 const { t } = useI18n()
 const scrollElement = ref<HTMLElement | null>(null)
 const viewportWidth = ref(0)
@@ -24,11 +28,11 @@ const cardWidth = computed(() => CARD_SIZE_MAP[settingsStore.settings.cardSize])
 const cardHeight = computed(() => Math.ceil(cardWidth.value * 0.75) + CARD_BODY_HEIGHT)
 const rowHeight = computed(() => cardHeight.value + CARD_GAP)
 const columnCount = computed(() => Math.max(1, Math.floor((viewportWidth.value + CARD_GAP) / (cardWidth.value + CARD_GAP))))
-const rowCount = computed(() => Math.ceil(assetStore.filteredAssets.length / columnCount.value))
+const rowCount = computed(() => Math.ceil(browse.visibleAssets.length / columnCount.value))
 const firstRow = computed(() => Math.max(0, Math.floor(scrollTop.value / rowHeight.value) - OVERSCAN_ROWS))
 const visibleRowCount = computed(() => Math.ceil(viewportHeight.value / rowHeight.value) + OVERSCAN_ROWS * 2)
 const lastRow = computed(() => Math.min(rowCount.value, firstRow.value + visibleRowCount.value))
-const visibleAssets = computed(() => assetStore.filteredAssets.slice(firstRow.value * columnCount.value, lastRow.value * columnCount.value))
+const windowAssets = computed(() => browse.visibleAssets.slice(firstRow.value * columnCount.value, lastRow.value * columnCount.value))
 const topSpacer = computed(() => firstRow.value * rowHeight.value)
 const bottomSpacer = computed(() => Math.max(0, (rowCount.value - lastRow.value) * rowHeight.value))
 
@@ -37,7 +41,9 @@ let resizeObserver: ResizeObserver | null = null
 function updateViewport(): void {
   const element = scrollElement.value
   if (!element) return
-  viewportWidth.value = element.clientWidth
+  // clientWidth includes the grid padding; columns must fit in the content box or cards overflow.
+  const style = getComputedStyle(element)
+  viewportWidth.value = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
   viewportHeight.value = element.clientHeight
   scrollTop.value = element.scrollTop
 }
@@ -47,10 +53,13 @@ function handleScroll(): void {
 }
 
 watch([
-  () => assetStore.searchQuery,
-  () => assetStore.showFavoritesOnly,
-  () => assetStore.activeAssetKind,
-  () => assetStore.modelCoverFilter,
+  () => browse.search,
+  () => browse.favoritesOnly,
+  () => browse.kind,
+  () => browse.modelCover,
+  () => browse.activeTagId,
+  () => browse.activeGroupId,
+  () => projectStore.filter,
   () => settingsStore.settings.cardSize,
 ], async () => {
   await nextTick()
@@ -69,25 +78,24 @@ onUnmounted(() => resizeObserver?.disconnect())
 
 <template>
   <div ref="scrollElement" class="asset-grid" @scroll.passive="handleScroll">
-    <div v-if="assetStore.isScanning" class="asset-grid__state">
+    <div v-if="library.isScanning" class="asset-grid__state">
       <q-spinner-dots color="primary" size="40px" />
       <span>{{ t.scanning }}</span>
     </div>
-    <div v-else-if="assetStore.filteredAssets.length === 0" class="asset-grid__state">
+    <div v-else-if="browse.visibleAssets.length === 0" class="asset-grid__state">
       <q-icon name="inventory_2" size="64px" color="grey-4" />
-      <p>{{ assetStore.totalCount === 0 ? t.noAssetsYet : t.noAssetsMatch }}</p>
+      <p>{{ browse.kindAssets.length === 0 ? t.noAssetsYet : t.noAssetsMatch }}</p>
     </div>
     <div v-else class="asset-grid__virtual">
       <div :style="{ height: `${topSpacer}px` }" />
       <div class="asset-grid__container" :style="{ gridTemplateColumns: `repeat(${columnCount}, ${cardWidth}px)` }">
         <AssetCard
-          v-for="asset in visibleAssets"
+          v-for="asset in windowAssets"
           :key="asset.id"
           :asset="asset"
           :width="cardWidth"
           :height="cardHeight"
-          @click="emit('select-asset', $event)"
-          @update:favorite="assetStore.toggleFavorite"
+          @open="emit('select-asset', $event)"
         />
       </div>
       <div :style="{ height: `${bottomSpacer}px` }" />

@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Asset } from '../types/asset'
 import { useAssetStore } from '../stores/assetStore'
-import { useTagStore } from '../stores/tagStore'
-import { useGroupStore } from '../stores/groupStore'
-import { useSettingsStore } from '../stores/settingsStore'
-import { useThumbnailStore } from '../stores/thumbnailStore'
-import { commandManager } from '../services/commandManager'
+import { useAppShell } from '../composables/useAppShell'
 import TopBar from '../components/TopBar.vue'
 import SideBar from '../components/SideBar.vue'
 import AssetGrid from '../components/AssetGrid.vue'
@@ -16,66 +12,15 @@ import MultiSelectToolbar from '../components/MultiSelectToolbar.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 import ModelClassificationBar from '../components/ModelClassificationBar.vue'
 
-const assetStore = useAssetStore()
-const tagStore = useTagStore()
-const groupStore = useGroupStore()
-const settingsStore = useSettingsStore()
-const thumbnailStore = useThumbnailStore()
-
+const assets = useAssetStore()
 const showSettings = ref(false)
 const selectedAssetId = ref<string | null>(null)
+const selectedAsset = computed<Asset | null>(() => (selectedAssetId.value ? assets.byId.get(selectedAssetId.value) ?? null : null))
 
-const selectedAsset = computed<Asset | null>(() =>
-  selectedAssetId.value
-    ? assetStore.assets.find(a => a.id === selectedAssetId.value) ?? null
-    : null
-)
-
-function handleSelectAsset(asset: Asset): void {
-  selectedAssetId.value = asset.id
-}
-
-function handleKeydown(event: KeyboardEvent): void {
-  if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
-    event.preventDefault()
-    if (commandManager.canUndo) {
-      commandManager.undo().then(() => assetStore.load())
-    }
-  }
-  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Z') {
-    event.preventDefault()
-    if (commandManager.canRedo) {
-      commandManager.redo().then(() => assetStore.load())
-    }
-  }
-  if (event.key === 'Escape') {
-    if (assetStore.paintingTagId) {
-      assetStore.stopTagPaint()
-    } else if (assetStore.isMultiSelect) {
-      assetStore.clearSelection()
-    } else if (selectedAssetId.value) {
-      selectedAssetId.value = null
-    }
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
-    if (assetStore.filteredAssets.length > 0) {
-      event.preventDefault()
-      assetStore.selectAll()
-    }
-  }
-}
-
-onMounted(async () => {
-  window.addEventListener('keydown', handleKeydown)
-  await settingsStore.load()
-  await tagStore.load()
-  await groupStore.load()
-  await assetStore.load()
-  await thumbnailStore.loadAll()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+useAppShell(() => {
+  if (!selectedAssetId.value) return false
+  selectedAssetId.value = null
+  return true
 })
 </script>
 
@@ -87,15 +32,12 @@ onUnmounted(() => {
 
     <div class="main-page__content">
       <SideBar />
-      <AssetGrid @select-asset="handleSelectAsset" />
+      <AssetGrid @select-asset="selectedAssetId = $event.id" />
     </div>
 
     <StatusBar />
 
-    <AssetDetailDrawer
-      :asset="selectedAsset"
-      @close="selectedAssetId = null"
-    />
+    <AssetDetailDrawer :asset="selectedAsset" @close="selectedAssetId = null" />
 
     <SettingsDialog v-model="showSettings" />
   </div>

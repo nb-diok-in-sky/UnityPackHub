@@ -1,23 +1,24 @@
 import { ref, type Ref } from 'vue'
-import { open } from '@tauri-apps/plugin-shell'
 import type { Asset } from '../types/asset'
+import { setFavorite } from '../domain/assetChanges'
+import { assetStoreSearchUrl } from '../domain/assetStore'
+import { fileService } from '../services/fileService'
+import { unityService } from '../services/unityService'
 import { useAssetStore } from '../stores/assetStore'
-import { useI18n } from '../services/i18n'
-import { detectUnityProject, highlightInUnity, importToUnity, openFileLocation } from '../services/unityImporter'
+import { useI18n } from '../i18n'
+import { errorMessage } from '../ui/feedback'
+import { unityErrorText } from './unityErrorText'
 
-function stripVersionSuffix(name: string): string {
-  return name.replace(/[\s_-]*v?\d+(\.\d+){0,3}[\s_-]*$/i, '').trim()
-}
-
+/** Buttons of the detail drawer; results are reported through `status`. */
 export function useAssetDetailActions(asset: Ref<Asset | null>) {
-  const assetStore = useAssetStore()
-  const { t } = useI18n()
+  const assets = useAssetStore()
+  const { t, tr } = useI18n()
   const isImporting = ref(false)
-  const isLocatingInUnity = ref(false)
+  const isLocating = ref(false)
   const status = ref('')
 
   async function toggleFavorite(): Promise<void> {
-    if (asset.value) await assetStore.toggleFavorite(asset.value.id)
+    if (asset.value) await assets.edit([asset.value.id], setFavorite(!asset.value.isFavorite))
   }
 
   async function importAsset(): Promise<void> {
@@ -25,55 +26,38 @@ export function useAssetDetailActions(asset: Ref<Asset | null>) {
     isImporting.value = true
     status.value = ''
     try {
-      const projectPath = await detectUnityProject()
-      const result = await importToUnity(asset.value.filePath, projectPath ?? undefined)
-      if (!result.success) {
-        status.value = result.message
-        return
-      }
-      if (projectPath) status.value = result.newlyInjected ? t.bridgeInjected : t.bridgeDetected
+      const result = await assets.importToUnity(asset.value)
+      if (result.projectPath) status.value = result.bridgeInstalled ? t.bridgeInjected : t.bridgeDetected
+    } catch (error) {
+      status.value = tr('importFailed', { reason: errorMessage(error) })
     } finally {
       isImporting.value = false
     }
   }
 
-  async function revealFile(): Promise<void> {
-    if (asset.value) await openFileLocation(asset.value.filePath)
-  }
-
   async function locateInUnity(): Promise<void> {
-    if (!asset.value || isLocatingInUnity.value) return
-    isLocatingInUnity.value = true
+    if (!asset.value || isLocating.value) return
+    isLocating.value = true
     status.value = ''
     try {
-      const result = await highlightInUnity(asset.value.filePath)
-      status.value = result.success
-        ? `Unity 已高亮：${result.assetPath ?? asset.value.fileName}`
-        : result.message
+      const path = await unityService.highlightFile(asset.value.filePath)
+      status.value = tr('unityHighlighted', { path: path || asset.value.fileName })
+    } catch (error) {
+      status.value = unityErrorText(error)
     } finally {
-      isLocatingInUnity.value = false
+      isLocating.value = false
     }
-  }
-
-  async function searchUnityStore(): Promise<void> {
-    if (!asset.value) return
-    const query = encodeURIComponent(stripVersionSuffix(asset.value.name))
-    await open(`https://assetstore.unity.com/?q=${query}&orderBy=1`)
-  }
-
-  function resetStatus(): void {
-    status.value = ''
   }
 
   return {
     isImporting,
-    isLocatingInUnity,
+    isLocating,
     status,
     toggleFavorite,
     importAsset,
-    revealFile,
     locateInUnity,
-    searchUnityStore,
-    resetStatus,
+    revealFile: async () => { if (asset.value) await fileService.reveal(asset.value.filePath) },
+    searchUnityStore: async () => { if (asset.value) await fileService.openUrl(assetStoreSearchUrl(asset.value.name)) },
+    resetStatus: () => { status.value = '' },
   }
 }

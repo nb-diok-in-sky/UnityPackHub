@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Asset } from "../../types/asset";
-import { useI18n } from "../../services/i18n";
+import { useI18n } from "../../i18n";
 import { useUnityPackagePreviews } from "../../composables/useUnityPackagePreviews";
 import SectionState from "../shared/SectionState.vue";
 import ImageLightbox from "../shared/ImageLightbox.vue";
@@ -11,7 +11,7 @@ const { t } = useI18n();
 const previews = useUnityPackagePreviews(() => props.asset);
 const selectedImage = computed(() =>
   previews.selected.value
-    ? (previews.images.value[previews.selected.value.preview] ?? "")
+    ? (previews.previews.value?.images[previews.selected.value.preview] ?? "")
     : "",
 );
 const lightboxOpen = computed({
@@ -24,13 +24,13 @@ defineExpose({ reset: previews.reset, loadPreviews: previews.load });
 </script>
 <template>
   <section
-    v-if="previews.loading.value || previews.data.value?.entries.length"
+    v-if="previews.loading.value || previews.previews.value?.entries.length"
     class="section"
   >
     <header>
       {{ t.unityPreviews
-      }}<span v-if="previews.data.value">{{
-        previews.data.value.entries.length
+      }}<span v-if="previews.previews.value">{{
+        previews.previews.value.entries.length
       }}</span>
     </header>
     <SectionState
@@ -38,10 +38,10 @@ defineExpose({ reset: previews.reset, loadPreviews: previews.load });
       :loading-text="t.loadingPreviews"
       ><div class="grid">
         <UnityPreviewCard
-          v-for="entry in previews.data.value?.entries ?? []"
+          v-for="entry in previews.previews.value?.entries ?? []"
           :key="entry.preview"
           :entry="entry"
-          :src="previews.images.value[entry.preview]"
+          :src="previews.previews.value?.images[entry.preview]"
           @open="previews.selected.value = entry"
           @cover="previews.useAsCover(entry)"
         /></div></SectionState

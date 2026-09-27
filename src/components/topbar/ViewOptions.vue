@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { CardSize, SortKey } from '../../types/asset'
+import type { CardSize, SortKey } from '../../types/settings'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { useI18n } from '../../services/i18n'
+import { useI18n } from '../../i18n'
 
 const settings = useSettingsStore()
 const { t } = useI18n()
