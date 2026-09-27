@@ -5,11 +5,14 @@ pub fn detect_unity_project() -> Result<Option<String>, String> {
     {
         use std::os::windows::process::CommandExt;
         let output = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='Unity.exe'\" | Select-Object -ExpandProperty CommandLine"])
+            // Force UTF-8 output: the default console code page mangles non-ASCII project paths.
+            .args(["-NoProfile", "-Command", "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-CimInstance Win32_Process -Filter \"Name='Unity.exe'\" | Select-Object -ExpandProperty CommandLine"])
             .creation_flags(0x08000000)
             .output()
             .map_err(|error| error.to_string())?;
         for line in String::from_utf8_lossy(&output.stdout).lines() {
+            // Batch-mode instances are asset import workers or UnityPackHub's own preview renderer.
+            if line.to_ascii_lowercase().contains("-batchmode") { continue; }
             if let Some(path) = project_path_from_command_line(line) {
                 if Path::new(&path).join("Assets").exists() { return Ok(Some(path)); }
             }

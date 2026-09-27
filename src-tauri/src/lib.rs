@@ -1,9 +1,18 @@
-mod package_parser;
-mod scanner;
-mod unity_bridge;
-mod model_preview;
-mod unity_paths;
-mod editor_actions;
+//! Tauri backend of UnityPackHub.
+//!
+//! - `library`  the user's asset folders (scan, sibling files, metadata, hashes)
+//! - `package`  reading `.unitypackage` archives
+//! - `unity`    the open Unity Editor and the headless preview project
+//! - `system`   handing files to the OS
+//! - `protocol` / `paths` / `files`  shared formats, locations and helpers
+
+mod files;
+mod library;
+mod package;
+mod paths;
+mod protocol;
+mod system;
+mod unity;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -13,34 +22,30 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
-            package_parser::parse_unity_package,
-            package_parser::extract_package_preview,
-            package_parser::parse_package_assets,
-            package_parser::extract_single_asset,
-            package_parser::open_with_default_app,
-            package_parser::reveal_in_explorer,
-            package_parser::debug_package_pathnames,
-            unity_bridge::ensure_preview_dir,
-            unity_bridge::clear_all_previews,
-            unity_bridge::detect_unity_project,
-            unity_bridge::ensure_bridge_script,
-            unity_bridge::get_package_previews,
-            unity_bridge::read_preview_image,
-            unity_bridge::read_all_previews,
-            unity_bridge::import_with_bridge,
-            unity_bridge::request_unity_editor_action,
-            unity_bridge::collect_unity_editor_action_result,
-            unity_bridge::is_unity_editor_bridge_ready,
-            model_preview::discover_unity_editors,
-            model_preview::start_model_preview_job,
-            model_preview::collect_model_preview_results,
-            model_preview::cancel_model_preview_job,
-            model_preview::read_model_preview_image,
-            scanner::scan_directories,
-            scanner::scan_model_related_files,
-            scanner::read_asset_metadata,
-            scanner::read_asset_metadata_table,
-            scanner::hash_files,
+            library::scan_directories,
+            library::scan_model_related_files,
+            library::read_asset_metadata,
+            library::read_asset_metadata_table,
+            library::hash_files,
+            package::parse_package_assets,
+            system::open_with_default_app,
+            system::reveal_in_explorer,
+            unity::detect_unity_project,
+            unity::discover_unity_editors,
+            unity::install_unity_bridge,
+            unity::unity_bridge_status,
+            unity::request_unity_editor_action,
+            unity::collect_unity_editor_action_result,
+            unity::import_package_into_unity,
+            unity::request_package_previews,
+            unity::read_package_preview_images,
+            unity::get_rendered_previews,
+            unity::clear_all_previews,
+            unity::start_model_preview_job,
+            unity::is_model_preview_job_running,
+            unity::cancel_model_preview_job,
+            unity::collect_model_preview_results,
+            unity::read_image_file,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

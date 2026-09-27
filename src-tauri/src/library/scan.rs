@@ -20,6 +20,15 @@ pub struct ScannedFile {
     pub asset_kind: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ScanResult {
+    pub files: Vec<ScannedFile>,
+    /// Directories that were actually readable. Assets outside these must not be
+    /// treated as deleted: an unplugged drive would otherwise wipe their tags and notes.
+    #[serde(rename = "scannedDirectories")]
+    pub scanned_directories: Vec<String>,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct RelatedFile {
     #[serde(rename = "fileName")]
@@ -32,11 +41,16 @@ pub struct RelatedFile {
     pub file_type: String,
 }
 
-pub fn scan_directories(directories: Vec<String>) -> Result<Vec<ScannedFile>, String> {
-    let files = directories.iter().flat_map(|directory| {
-        WalkDir::new(directory).follow_links(true).into_iter().filter_map(Result::ok)
-    }).filter_map(|entry| scanned_file(&entry));
-    Ok(files.collect())
+pub fn scan_directories(directories: Vec<String>) -> Result<ScanResult, String> {
+    let mut result = ScanResult { files: Vec::new(), scanned_directories: Vec::new() };
+    for directory in directories {
+        if std::fs::read_dir(&directory).is_err() { continue; }
+        let walker = WalkDir::new(&directory).follow_links(true).into_iter()
+            .filter_entry(|entry| !is_unity_internal_dir(entry));
+        result.files.extend(walker.filter_map(Result::ok).filter_map(|entry| scanned_file(&entry)));
+        result.scanned_directories.push(directory);
+    }
+    Ok(result)
 }
 
 pub fn scan_model_related_files(model_path: String) -> Result<Vec<RelatedFile>, String> {
@@ -64,7 +78,7 @@ pub fn scan_model_related_files(model_path: String) -> Result<Vec<RelatedFile>, 
 
 fn scanned_file(entry: &walkdir::DirEntry) -> Option<ScannedFile> {
     let path = entry.path();
-    if !path.is_file() || is_unity_internal(path) { return None; }
+    if !entry.file_type().is_file() { return None; }
     let extension = extension(path);
     let asset_kind = match extension.as_str() {
         "unitypackage" if !is_embedded_package(path) => "package",
@@ -90,16 +104,20 @@ fn related_file_type(path: &Path) -> Option<&'static str> {
     else { None }
 }
 
-fn extension(path: &Path) -> String {
-    path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase()
-}
+use crate::files::extension_lowercase as extension;
 
 fn strip_extension(file_name: &str) -> String {
     Path::new(file_name).file_stem().and_then(|value| value.to_str()).unwrap_or(file_name).to_string()
 }
 
-fn is_unity_internal(path: &Path) -> bool {
-    path.components().filter_map(|component| component.as_os_str().to_str()).any(|component| matches!(component.to_ascii_lowercase().as_str(), "library" | "packagecache" | "temp" | "obj" | "logs"))
+/// Skips generated folders only when they sit at the root of a Unity project, so that a
+/// user folder that happens to be called "Library" or "Temp" is still scanned.
+fn is_unity_internal_dir(entry: &walkdir::DirEntry) -> bool {
+    if !entry.file_type().is_dir() { return false; }
+    let is_generated = entry.file_name().to_str().is_some_and(|name| {
+        matches!(name.to_ascii_lowercase().as_str(), "library" | "temp" | "obj" | "logs" | "usersettings")
+    });
+    is_generated && entry.path().parent().is_some_and(|project| project.join("ProjectSettings").is_dir())
 }
 
 fn is_embedded_package(path: &Path) -> bool {
@@ -107,4 +125,26 @@ fn is_embedded_package(path: &Path) -> bool {
         ancestor.file_name().and_then(|name| name.to_str()).is_some_and(|name| name.eq_ignore_ascii_case("Assets"))
             && ancestor.parent().is_some_and(|project| project.join("ProjectSettings").is_dir())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scan_directories;
+    use std::fs;
+
+    #[test]
+    fn skips_unity_library_but_keeps_user_folders_named_library() {
+        let root = std::env::temp_dir().join(format!("uph-scan-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("Project/ProjectSettings")).unwrap();
+        fs::create_dir_all(root.join("Project/Library")).unwrap();
+        fs::create_dir_all(root.join("Library")).unwrap();
+        fs::write(root.join("Project/Library/cached.fbx"), "x").unwrap();
+        fs::write(root.join("Library/tree.fbx"), "x").unwrap();
+        let result = scan_directories(vec![root.to_string_lossy().into(), root.join("missing").to_string_lossy().into()]).unwrap();
+        let names: Vec<_> = result.files.iter().map(|file| file.file_name.as_str()).collect();
+        assert_eq!(names, vec!["tree.fbx"]);
+        assert_eq!(result.scanned_directories, vec![root.to_string_lossy().to_string()]);
+        let _ = fs::remove_dir_all(&root);
+    }
 }

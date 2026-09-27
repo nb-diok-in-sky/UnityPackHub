@@ -23,7 +23,6 @@
       "allow": [{ "path": "**" }]
     },
     "shell:default",
-    "shell:allow-execute",
     "shell:allow-open",
     "http:allow-fetch",
     "http:allow-fetch-cancel",

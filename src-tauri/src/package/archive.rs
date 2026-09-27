@@ -11,14 +11,17 @@ pub struct PackageContent {
     pub assets: HashSet<String>,
 }
 
-pub fn read_package(path: &str) -> Result<PackageContent, String> {
+/// Streams the archive once. Embedded previews are only decoded when asked for, since
+/// they are the only part that needs real memory.
+pub fn read_package(path: &str, include_previews: bool) -> Result<PackageContent, String> {
     let file = File::open(path).map_err(|error| format!("Failed to open file: {error}"))?;
     let mut archive = Archive::new(GzDecoder::new(file));
     let entries = archive.entries().map_err(|error| format!("Failed to read archive: {error}"))?;
     let mut content = PackageContent::default();
 
     for entry_result in entries {
-        let mut entry = match entry_result { Ok(entry) => entry, Err(_) => continue };
+        // A broken gzip/tar stream cannot be resumed; report it instead of returning a partial list.
+        let mut entry = entry_result.map_err(|error| format!("Package is corrupted or truncated: {error}"))?;
         let entry_path = match entry.path() { Ok(path) => path.to_string_lossy().to_string(), Err(_) => continue };
         let Some((guid, entry_name)) = split_entry_path(&entry_path) else { continue };
 
@@ -26,7 +29,7 @@ pub fn read_package(path: &str) -> Result<PackageContent, String> {
             "pathname" => if let Some(pathname) = read_pathname(&mut entry) {
                 content.pathnames.insert(guid.to_string(), pathname);
             },
-            "preview.png" => if let Some(data) = read_bytes(&mut entry) {
+            "preview.png" if include_previews => if let Some(data) = read_bytes(&mut entry) {
                 content.previews.insert(guid.to_string(), data);
             },
             "asset" | "asset.meta" => { content.assets.insert(guid.to_string()); },
@@ -37,6 +40,8 @@ pub fn read_package(path: &str) -> Result<PackageContent, String> {
 }
 
 pub fn split_entry_path(path: &str) -> Option<(&str, &str)> {
+    // Some exporters write entries as "./<guid>/pathname" instead of "<guid>/pathname".
+    let path = path.trim_start_matches("./");
     let (guid, name) = path.split_once('/')?;
     if name.contains('/') { None } else { Some((guid, name)) }
 }
@@ -65,6 +70,7 @@ mod tests {
     fn splits_only_guid_and_entry_name() {
         assert_eq!(split_entry_path("guid/pathname"), Some(("guid", "pathname")));
         assert_eq!(split_entry_path("guid/folder/asset"), None);
+        assert_eq!(split_entry_path("./guid/asset.meta"), Some(("guid", "asset.meta")));
     }
 
     #[test]

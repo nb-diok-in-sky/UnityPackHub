@@ -1,39 +1,41 @@
-use super::package_archive;
-use super::package_preview::encode_preview;
+use super::archive;
+use crate::files::png_data_url;
 use serde::Serialize;
 use std::path::Path;
 
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageAssetEntry {
     pub guid: String,
     pub pathname: String,
     pub filename: String,
     pub extension: String,
     pub asset_type: String,
+    /// Preview image embedded in the package by the exporter, as a data URL.
     pub preview: Option<String>,
     pub has_asset_data: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageAssetList {
     pub entries: Vec<PackageAssetEntry>,
     pub total_count: usize,
 }
 
-pub fn parse_package_assets(path: String) -> Result<PackageAssetList, String> {
-    let content = package_archive::read_package(&path)?;
+pub fn list_assets(path: &str) -> Result<PackageAssetList, String> {
+    let content = archive::read_package(path, true)?;
     let mut entries: Vec<PackageAssetEntry> = content.pathnames.iter().filter_map(|(guid, pathname)| {
         if pathname.ends_with('/') { return None; }
         let asset_type = classify_pathname(pathname)?;
-        let filename = pathname.rsplit('/').next().unwrap_or(pathname).to_string();
-        let extension = Path::new(&filename).extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
+        let filename = file_name(pathname).to_string();
         Some(PackageAssetEntry {
             guid: guid.clone(),
             pathname: pathname.clone(),
+            extension: crate::files::extension_lowercase(Path::new(&filename)),
             filename,
-            extension,
             asset_type: asset_type.to_string(),
-            preview: content.previews.get(guid).map(|data| encode_preview(data)),
+            preview: content.previews.get(guid).map(|data| png_data_url(data)),
             has_asset_data: content.assets.contains(guid),
         })
     }).collect();
@@ -41,20 +43,23 @@ pub fn parse_package_assets(path: String) -> Result<PackageAssetList, String> {
     Ok(PackageAssetList { total_count: entries.len(), entries })
 }
 
-pub fn debug_package_pathnames(path: String, limit: usize) -> Result<Vec<String>, String> {
-    let content = package_archive::read_package(&path)?;
-    Ok(content.pathnames.values()
-        .filter(|pathname| !pathname.ends_with('/'))
-        .take(limit)
-        .map(|pathname| format!("[{}] {}", classify_pathname(pathname).unwrap_or("SKIP"), pathname))
-        .collect())
+/// (pathname, filename) of every prefab. Reads only pathnames, not embedded previews.
+pub fn prefab_entries(path: &str) -> Result<Vec<(String, String)>, String> {
+    let content = archive::read_package(path, false)?;
+    let mut prefabs: Vec<_> = content.pathnames.into_values()
+        .filter(|pathname| classify_pathname(pathname) == Some("Prefab"))
+        .map(|pathname| { let filename = file_name(&pathname).to_string(); (pathname, filename) })
+        .collect();
+    prefabs.sort();
+    Ok(prefabs)
 }
 
+fn file_name(pathname: &str) -> &str { pathname.rsplit('/').next().unwrap_or(pathname) }
+
 fn classify_pathname(pathname: &str) -> Option<&'static str> {
-    let extension = Path::new(pathname).extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
-    let extension = extension.as_str();
-    if extension == "meta" { return None; }
-    let kind = match extension {
+    let extension = crate::files::extension_lowercase(Path::new(pathname));
+    let kind = match extension.as_str() {
+        "meta" => return None,
         "fbx" | "obj" | "blend" | "dae" | "3ds" | "max" | "ma" | "mb" | "stl" | "ply" | "gltf" | "glb" | "abc" | "usd" | "usda" | "usdc" | "usdz" => "Model",
         "png" | "jpg" | "jpeg" | "tga" | "psd" | "exr" | "tif" | "tiff" | "bmp" | "gif" | "hdr" | "svg" | "dds" | "ktx" | "cubemap" | "astc" | "rendertexture" | "flare" | "giparams" => "Texture",
         "mat" | "physicmaterial" | "physicsmaterial" => "Material",
