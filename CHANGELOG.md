@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] - 2026-09-30
 
 ### Added
 
@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - 卡片右键菜单：勾选式打标签、从当前分组移除、从资产库移除；多选工具栏增加"移出分组"
 - 移除资产、移出分组后的提示中直接带"撤销"按钮；双击导入后提示已交给哪个 Unity 项目
 - 设置 > 数据备份：导出资产、标签、分组、备注、封面和设置到文件夹（封面为独立图片文件），可从备份恢复
+
+### Changed
+
+- 图片改为通过 `uph://` 协议按需加载：包内预览在解析时解压到磁盘缓存，Unity 截图和模型封面直接从文件读取，不再以 base64 形式经过 IPC 或整份存进 IndexedDB；协议只允许访问 app 数据目录
+- Unity 写到磁盘的结果改由 Rust 文件监听推送事件，编辑器动作、模型封面批处理和橱窗新图都不再定时轮询
+- 引入 ESLint、Prettier 与 rustfmt 并统一全项目格式；`npm run check` 一条命令完成格式、lint、类型检查与测试
+- 新增 store 与 composable 测试（撤销/重做、隐藏与筛选、扫描提示、模型封面结果、Unity 连接、带撤销的资产操作），前端测试增至 51 个
 
 ## [0.5.0] - 2026-09-27
 

@@ -292,6 +292,12 @@ const visibleAssets = computed(() => queryAssets(assets.assets, {
 - 修改任何格式时，两边同时递增 `VERSION`。Rust 测试会校验两边的版本号和文件名是否一致
 - 预览图文件名只由 Rust 的 `preview_output_file` 生成，前端和 C# 都只读取它给出的名字
 
+### 7.4 图片与推送
+
+- 磁盘上的图片（包内预览、Unity 截图、模型封面）一律通过 `uph://` 协议按需加载（前端用 `appFileUrl(path)`），不要把图片转成 base64 走 IPC。协议只允许读取 app 数据目录下的文件
+- Unity 写到磁盘上的结果由 Rust 的文件监听（`src-tauri/src/events.rs`）推送为事件，前端收到事件再去收取结果，不写定时轮询。等待事件时可以带一个兜底超时（`createWakeSignal`），防止文件监听失效时卡住
+- 事件名在 `events.rs` 和 `platform/backend.ts` 两处定义，两边保持一致
+
 ---
 
 ## 8 样式规范
@@ -523,11 +529,16 @@ chore: 升级 Quasar 至 2.20
 tests/
 ├── architecture.test.ts       # 分层规则
 ├── databaseMigration.test.ts  # Dexie 升级（fake-indexeddb）
+├── backupRoundTrip.test.ts    # 备份导出→恢复往返（内存文件系统）
 ├── librarySync.test.ts        # 扫描对账
-└── domain.test.ts             # 其余 domain 纯逻辑
+├── *.test.ts                  # 其余 domain 纯逻辑
+└── stores/                    # store 与 composable（happy-dom，mock 掉 services）
 ```
 
-运行 `npm test`（vitest）、`cargo test`（Rust 与协议一致性）和 `npm run check:bridge`（离线编译 C# 桥接）。
+- `npm run check`：格式检查 + ESLint + 类型检查 + 全部前端测试，提交前必须通过
+- `cd src-tauri && cargo fmt --check && cargo clippy --all-targets && cargo test`：Rust 格式、lint 与测试（含协议一致性）
+- `npm run check:bridge`：对照本机 Unity 离线编译 C# 桥接
+- 格式由 Prettier（`.prettierrc.json`）和 rustfmt（`src-tauri/rustfmt.toml`）决定，不手工调整；`npm run format` 一键格式化
 
 ### 15.2 规则
 
@@ -559,8 +570,8 @@ describe('CommandManager', () => {
 
 提交 PR 前自查：
 
-- [ ] TypeScript 无报错（`npm run typecheck`）
-- [ ] `npm test` 和 `cargo test` 通过，改了 C# 桥接时 `npm run check:bridge` 通过
+- [ ] `npm run check` 通过（格式、lint、类型、测试）
+- [ ] `cargo fmt --check`、`cargo clippy --all-targets`、`cargo test` 通过；改了 C# 桥接时 `npm run check:bridge` 通过
 - [ ] 无 `any` 类型
 - [ ] 无硬编码的颜色/间距/字符串
 - [ ] 新增文案已添加中英文翻译

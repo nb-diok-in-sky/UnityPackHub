@@ -18,7 +18,7 @@ Unity 离线资产管理工具 —— 不打开 Unity，直接浏览和管理你
 项目里已经放好了打包好的安装程序，clone 下来直接装：
 
 ```
-release/UnityPackHub_0.5.0_x64-setup.exe
+release/UnityPackHub_0.6.0_x64-setup.exe
 ```
 
 双击运行，安装完打开即用。安装包只有 ~5MB。
@@ -135,8 +135,9 @@ src-tauri/src/
 分层规则见 [CODING_STANDARDS.md](CODING_STANDARDS.md)。检查命令：
 
 ```bash
-npm test && npm run typecheck && cd src-tauri && cargo test
-npm run check:bridge   # 需要 .NET SDK 和一个已安装的 Unity 编辑器
+npm run check                                   # 格式 + lint + 类型检查 + 前端测试
+cd src-tauri && cargo fmt --check && cargo clippy --all-targets && cargo test
+npm run check:bridge                            # 需要 .NET SDK 和一个已安装的 Unity 编辑器
 ```
 
 </details>
