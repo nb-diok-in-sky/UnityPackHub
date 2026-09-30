@@ -48,12 +48,16 @@ export const useUnityConnectionStore = defineStore('unityConnection', () => {
     }
   }
 
-  const onFocus = () => { void refresh() }
+  const onFocus = () => {
+    void refresh()
+  }
 
   function startMonitoring(): void {
     if (timer) return
     void refresh()
-    timer = setInterval(() => { void refresh() }, REFRESH_INTERVAL_MS)
+    timer = setInterval(() => {
+      void refresh()
+    }, REFRESH_INTERVAL_MS)
     window.addEventListener('focus', onFocus)
   }
 

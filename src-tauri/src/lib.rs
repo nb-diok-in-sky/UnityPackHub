@@ -6,6 +6,8 @@
 //! - `system`   handing files to the OS
 //! - `protocol` / `paths` / `files`  shared formats, locations and helpers
 
+mod app_protocol;
+mod events;
 mod files;
 mod library;
 mod package;
@@ -21,6 +23,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
+        .register_asynchronous_uri_scheme_protocol(app_protocol::SCHEME, |_context, request, responder| {
+            let path = request.uri().path().to_string();
+            std::thread::spawn(move || responder.respond(app_protocol::respond(&path)));
+        })
         .invoke_handler(tauri::generate_handler![
             library::scan_directories,
             library::scan_model_related_files,
@@ -38,22 +44,18 @@ pub fn run() {
             unity::collect_unity_editor_action_result,
             unity::import_package_into_unity,
             unity::request_package_previews,
-            unity::read_package_preview_images,
+            unity::list_package_preview_files,
             unity::get_rendered_previews,
             unity::clear_all_previews,
             unity::start_model_preview_job,
             unity::is_model_preview_job_running,
             unity::cancel_model_preview_job,
             unity::collect_model_preview_results,
-            unity::read_image_file,
         ])
         .setup(|app| {
+            events::start(app.handle().clone());
             if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
+                app.handle().plugin(tauri_plugin_log::Builder::default().level(log::LevelFilter::Info).build())?;
             }
             Ok(())
         })

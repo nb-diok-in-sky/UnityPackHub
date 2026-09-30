@@ -1,10 +1,10 @@
 :root {
-  --color-background: #F5F5F7;
-  --color-surface: #FFFFFF;
-  --color-text: #1D1D1F;
-  --color-secondary: #86868B;
-  --color-border: #E5E5EA;
-  --color-divider: #F2F2F7;
+  --color-background: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-text: #1d1d1f;
+  --color-secondary: #86868b;
+  --color-border: #e5e5ea;
+  --color-divider: #f2f2f7;
   --glass-background: rgba(255, 255, 255, 0.72);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -20,12 +20,12 @@
 }
 
 .dark-theme {
-  --color-background: #1C1C1E;
-  --color-surface: #2C2C2E;
-  --color-text: #F5F5F7;
-  --color-secondary: #98989D;
-  --color-border: #38383A;
-  --color-divider: #38383A;
+  --color-background: #1c1c1e;
+  --color-surface: #2c2c2e;
+  --color-text: #f5f5f7;
+  --color-secondary: #98989d;
+  --color-border: #38383a;
+  --color-divider: #38383a;
   --glass-background: rgba(44, 44, 46, 0.72);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -60,7 +60,8 @@
     border: 1px solid var(--color-border);
   }
 
-  .text-h6, .text-subtitle2 {
+  .text-h6,
+  .text-subtitle2 {
     color: var(--color-text);
   }
 

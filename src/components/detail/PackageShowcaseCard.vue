@@ -1,54 +1,36 @@
 <script setup lang="ts">
-import type { PackageAssetEntry } from "../../platform/backend";
+import type { PackageAssetEntry } from '../../platform/backend'
 
 const props = defineProps<{
-  entry: PackageAssetEntry;
-  thumbnail: string | null;
-}>();
+  entry: PackageAssetEntry
+  thumbnail: string | null
+}>()
 const icons: Record<string, string> = {
-  Prefab: "widgets",
-  Texture: "image",
-  Script: "description",
-};
+  Prefab: 'widgets',
+  Texture: 'image',
+  Script: 'description',
+}
 
 function drag(event: DragEvent): void {
-  if (!props.thumbnail || !event.dataTransfer) return;
-  event.dataTransfer.setData("application/cover-image", props.thumbnail);
-  event.dataTransfer.effectAllowed = "copy";
+  if (!props.thumbnail || !event.dataTransfer) return
+  event.dataTransfer.setData('application/cover-image', props.thumbnail)
+  event.dataTransfer.effectAllowed = 'copy'
 }
 </script>
 
 <template>
-  <div
-    class="card"
-    :title="entry.pathname"
-    :draggable="!!thumbnail"
-    @dragstart="drag"
-  >
+  <div class="card" :title="entry.pathname" :draggable="!!thumbnail" @dragstart="drag">
     <div class="card__preview">
-      <img
-        v-if="thumbnail"
-        :src="thumbnail"
-        :alt="entry.filename"
-        loading="lazy"
-      />
-      <q-icon
-        v-else
-        :name="icons[entry.assetType] ?? 'insert_drive_file'"
-        size="32px"
-        color="grey-5"
-      />
-      <span
-        :class="`card__badge card__badge--${entry.assetType.toLowerCase()}`"
-        >{{ entry.assetType }}</span
-      >
+      <img v-if="thumbnail" :src="thumbnail" :alt="entry.filename" loading="lazy" />
+      <q-icon v-else :name="icons[entry.assetType] ?? 'insert_drive_file'" size="32px" color="grey-5" />
+      <span :class="`card__badge card__badge--${entry.assetType.toLowerCase()}`">{{ entry.assetType }}</span>
     </div>
     <div class="card__name" :title="entry.filename">{{ entry.filename }}</div>
   </div>
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .card {
   width: calc(50% - 4px);
   flex-shrink: 0;

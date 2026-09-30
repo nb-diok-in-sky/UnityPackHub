@@ -28,10 +28,14 @@ const PREVIEW_PROJECT_SCRIPTS: &[Script] = &[
 /// Returns true when scripts changed, i.e. Unity has to recompile before the bridge works.
 pub fn install_project_bridge(project_path: &str) -> Result<bool, String> {
     let project = Path::new(project_path);
-    if !project.join("Assets").is_dir() { return Err("Invalid Unity project path: Assets folder not found".into()); }
+    if !project.join("Assets").is_dir() {
+        return Err("Invalid Unity project path: Assets folder not found".into());
+    }
     let changed = install(&project.join("Assets/Editor/UnityPackHub"), PROJECT_SCRIPTS)?;
     let legacy = project.join("Assets/Editor/UnityAssetShelf");
-    if legacy.exists() { let _ = fs::remove_dir_all(legacy); }
+    if legacy.exists() {
+        let _ = fs::remove_dir_all(legacy);
+    }
     Ok(changed)
 }
 

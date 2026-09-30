@@ -12,7 +12,9 @@ const { t } = useI18n()
   <q-btn-toggle
     :model-value="settingsStore.settings.locale"
     toggle-color="primary"
-    dense no-caps rounded
+    dense
+    no-caps
+    rounded
     :options="[
       { label: '中文', value: 'zh-CN' },
       { label: 'English', value: 'en-US' },
@@ -25,7 +27,9 @@ const { t } = useI18n()
   <q-btn-toggle
     :model-value="settingsStore.settings.theme"
     toggle-color="primary"
-    dense no-caps rounded
+    dense
+    no-caps
+    rounded
     :options="[
       { label: t.themeLight, value: 'light' },
       { label: t.themeDark, value: 'dark' },

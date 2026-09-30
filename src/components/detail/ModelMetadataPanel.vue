@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { AssetMetadata } from "../../platform/backend";
-import { useI18n } from "../../i18n";
-defineProps<{ metadata: AssetMetadata }>();
-const { t } = useI18n();
+import type { AssetMetadata } from '../../platform/backend'
+import { useI18n } from '../../i18n'
+defineProps<{ metadata: AssetMetadata }>()
+const { t } = useI18n()
 </script>
 <template>
   <div class="panel">
@@ -11,14 +11,11 @@ const { t } = useI18n();
     </div>
     <div class="panel__grid">
       <span>{{ t.assetTypePrefab }}</span
-      ><strong>{{ metadata.format || "-" }}</strong
+      ><strong>{{ metadata.format || '-' }}</strong
       ><span>{{ t.filePath }}</span
       ><strong :title="metadata.path">{{ metadata.path }}</strong
       ><template v-if="metadata.sourceAsset"
-        ><span>Source</span
-        ><strong :title="metadata.sourceAsset">{{
-          metadata.sourceAsset
-        }}</strong></template
+        ><span>Source</span><strong :title="metadata.sourceAsset">{{ metadata.sourceAsset }}</strong></template
       ><template v-if="metadata.boundsText"
         ><span>Bounds</span><strong>{{ metadata.boundsText }}</strong></template
       >
@@ -26,7 +23,7 @@ const { t } = useI18n();
   </div>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .panel {
   padding: 10px;
   border: 1px solid $color-border;

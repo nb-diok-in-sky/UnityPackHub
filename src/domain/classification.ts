@@ -21,9 +21,11 @@ export function classifyModels(entries: readonly AssetMetadata[], assets: readon
   const categorized = entries.filter((entry) => categoryOf(entry) !== null)
   if (categorized.length === 0) throw new Error('The classification table contains no inferredObject categories')
 
-  const byPath = new Map(categorized
-    .filter((entry) => entry.path.trim().length > 0)
-    .map((entry) => [normalizePath(entry.path).toLocaleLowerCase(), entry]))
+  const byPath = new Map(
+    categorized
+      .filter((entry) => entry.path.trim().length > 0)
+      .map((entry) => [normalizePath(entry.path).toLocaleLowerCase(), entry]),
+  )
   const byName = new Map<string, AssetMetadata | null>()
   for (const entry of categorized) {
     const key = normalizeName(entry.originalName)
@@ -34,7 +36,8 @@ export function classifyModels(entries: readonly AssetMetadata[], assets: readon
   const models = assets.filter((asset) => asset.assetKind === 'model')
   let matchedAssetCount = 0
   for (const asset of models) {
-    const entry = byPath.get(normalizePath(asset.filePath).toLocaleLowerCase()) ?? byName.get(normalizeName(asset.fileName))
+    const entry =
+      byPath.get(normalizePath(asset.filePath).toLocaleLowerCase()) ?? byName.get(normalizeName(asset.fileName))
     const category = entry ? categoryOf(entry) : null
     if (!category) continue
     assetIdsByCategory.set(category, [...(assetIdsByCategory.get(category) ?? []), asset.id])

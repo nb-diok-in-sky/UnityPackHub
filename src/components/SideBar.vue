@@ -1,38 +1,27 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useI18n } from "../i18n";
-import { useSidebarManagement } from "../composables/useSidebarManagement";
-import SidebarKindSwitcher from "./sidebar/SidebarKindSwitcher.vue";
-import SidebarGroupList from "./sidebar/SidebarGroupList.vue";
-import SidebarTagList from "./sidebar/SidebarTagList.vue";
-import SidebarEntityDialog from "./sidebar/SidebarEntityDialog.vue";
-import type {
-  EditableGroup,
-  EditableTag,
-} from "../composables/useSidebarManagement";
+import { computed } from 'vue'
+import { useI18n } from '../i18n'
+import { useSidebarManagement } from '../composables/useSidebarManagement'
+import SidebarKindSwitcher from './sidebar/SidebarKindSwitcher.vue'
+import SidebarGroupList from './sidebar/SidebarGroupList.vue'
+import SidebarTagList from './sidebar/SidebarTagList.vue'
+import SidebarEntityDialog from './sidebar/SidebarEntityDialog.vue'
+import type { EditableGroup, EditableTag } from '../composables/useSidebarManagement'
 
-const { t } = useI18n();
-const sidebar = useSidebarManagement();
+const { t } = useI18n()
+const sidebar = useSidebarManagement()
 
-const groupDialogTitle = computed(() =>
-  sidebar.groupDraft.value?.id ? t.editGroup : t.newGroup,
-);
-const tagDialogTitle = computed(() =>
-  sidebar.tagDraft.value?.id ? t.editTag : t.newTag,
-);
-const groupSaveLabel = computed(() =>
-  sidebar.groupDraft.value?.id ? t.save : t.create,
-);
-const tagSaveLabel = computed(() =>
-  sidebar.tagDraft.value?.id ? t.save : t.create,
-);
+const groupDialogTitle = computed(() => (sidebar.groupDraft.value?.id ? t.editGroup : t.newGroup))
+const tagDialogTitle = computed(() => (sidebar.tagDraft.value?.id ? t.editTag : t.newTag))
+const groupSaveLabel = computed(() => (sidebar.groupDraft.value?.id ? t.save : t.create))
+const tagSaveLabel = computed(() => (sidebar.tagDraft.value?.id ? t.save : t.create))
 
 function saveGroup(value: EditableGroup | EditableTag): void {
-  if ("name" in value) void sidebar.saveGroup(value);
+  if ('name' in value) void sidebar.saveGroup(value)
 }
 
 function saveTag(value: EditableGroup | EditableTag): void {
-  if ("label" in value) void sidebar.saveTag(value);
+  if ('label' in value) void sidebar.saveTag(value)
 }
 </script>
 
@@ -114,7 +103,7 @@ function saveTag(value: EditableGroup | EditableTag): void {
 </template>
 
 <style scoped lang="scss">
-@use "../styles/variables" as *;
+@use '../styles/variables' as *;
 
 .sidebar {
   width: $sidebar-width;

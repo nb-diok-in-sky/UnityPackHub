@@ -1,10 +1,10 @@
 <script setup lang="ts">
 defineProps<{
-  loading?: boolean;
-  empty?: boolean;
-  loadingText?: string;
-  emptyText?: string;
-}>();
+  loading?: boolean
+  empty?: boolean
+  loadingText?: string
+  emptyText?: string
+}>()
 </script>
 <template>
   <div v-if="loading" class="state">
@@ -16,7 +16,7 @@ defineProps<{
   <slot v-else />
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .state {
   display: flex;
   align-items: center;

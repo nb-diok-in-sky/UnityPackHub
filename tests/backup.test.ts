@@ -3,8 +3,16 @@ import { BACKUP_FORMAT, backupFolderName, coverFileName, InvalidBackupError, par
 import { joinPath, parentDirectory } from '../src/domain/paths'
 
 const valid = {
-  format: BACKUP_FORMAT, version: 1, exportedAt: 0, settings: {},
-  assets: [{ id: 'a', filePath: 'D:\\A.unitypackage' }], tags: [], groups: [], unityAssetLinks: [], assetStoreLinks: [], covers: [],
+  format: BACKUP_FORMAT,
+  version: 1,
+  exportedAt: 0,
+  settings: {},
+  assets: [{ id: 'a', filePath: 'D:\\A.unitypackage' }],
+  tags: [],
+  groups: [],
+  unityAssetLinks: [],
+  assetStoreLinks: [],
+  covers: [],
 }
 
 describe('backup format', () => {

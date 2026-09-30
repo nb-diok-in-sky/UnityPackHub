@@ -56,8 +56,14 @@ export function useAssetDetailActions(asset: Ref<Asset | null>) {
     toggleFavorite,
     importAsset,
     locateInUnity,
-    revealFile: async () => { if (asset.value) await fileService.reveal(asset.value.filePath) },
-    searchUnityStore: async () => { if (asset.value) await fileService.openUrl(assetStoreSearchUrl(asset.value.name)) },
-    resetStatus: () => { status.value = '' },
+    revealFile: async () => {
+      if (asset.value) await fileService.reveal(asset.value.filePath)
+    },
+    searchUnityStore: async () => {
+      if (asset.value) await fileService.openUrl(assetStoreSearchUrl(asset.value.name))
+    },
+    resetStatus: () => {
+      status.value = ''
+    },
   }
 }

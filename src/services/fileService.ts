@@ -1,6 +1,14 @@
 // File pickers and handing files or URLs to the operating system.
 import { backend } from '../platform/backend'
-import { onFileDrop, openExternal, pickDirectory, pickFile, pickSavePath, writeTextFileAt, type FileFilter } from '../platform/system'
+import {
+  onFileDrop,
+  openExternal,
+  pickDirectory,
+  pickFile,
+  pickSavePath,
+  writeTextFileAt,
+  type FileFilter,
+} from '../platform/system'
 
 export const JSON_FILTER: FileFilter = { name: 'JSON', extensions: ['json'] }
 

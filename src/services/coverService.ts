@@ -1,11 +1,19 @@
 // Cover images: stored as blobs in IndexedDB, keyed by asset id.
 import { coverRepository } from '../data/repositories'
-import { httpGet, readBinaryFile } from '../platform/system'
+import { fetchImage, httpGet, readBinaryFile } from '../platform/system'
+import { appFileUrl } from '../platform/backend'
 import { dataUrlToBlob } from '../domain/legacyRecords'
 
 const MIME_TYPES: Record<string, string> = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
-  bmp: 'image/bmp', svg: 'image/svg+xml', ico: 'image/x-icon', tiff: 'image/tiff',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+  ico: 'image/x-icon',
+  tiff: 'image/tiff',
 }
 
 const IMAGE_EXTENSIONS = Object.keys(MIME_TYPES)
@@ -33,4 +41,11 @@ export const coverService = {
   },
 
   imageFromDataUrl: dataUrlToBlob,
+
+  /** A file under the app data folder (Unity renders, extracted package previews). */
+  imageFromAppFile: (path: string): Promise<Blob> => fetchImage(appFileUrl(path)),
+
+  /** A URL the page already displays, e.g. a thumbnail dragged from the showcase. */
+  imageFromPageUrl: (url: string): Promise<Blob> =>
+    url.startsWith('data:') ? Promise.resolve(dataUrlToBlob(url)) : fetchImage(url),
 }

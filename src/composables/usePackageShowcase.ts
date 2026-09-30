@@ -7,12 +7,9 @@ import { errorMessage } from '../ui/feedback'
 export const PACKAGE_SHOWCASE_TYPES = ['Prefab', 'Texture', 'Script'] as const
 export type PackageShowcaseType = (typeof PACKAGE_SHOWCASE_TYPES)[number]
 
-const RENDER_POLL_INTERVAL_MS = 3000
-const RENDER_POLL_LIMIT = 60
-
 /**
  * Detail section listing a package's prefabs, textures and scripts. Opening it asks the Unity
- * bridge to render missing prefab previews and picks new images up while it stays open.
+ * bridge to render missing prefab previews; new renders show up as Unity writes them.
  */
 export function usePackageShowcase(asset: () => Asset) {
   const listing = ref<PackageAssetList | null>(null)
@@ -20,48 +17,59 @@ export function usePackageShowcase(asset: () => Asset) {
   const error = ref('')
   const open = ref(false)
   const filter = ref<'All' | PackageShowcaseType>('All')
-  const images = ref<Record<string, string>>({})
+  const folder = ref('')
+  const renderedFiles = ref<ReadonlySet<string>>(new Set())
   const outputFiles = ref<Record<string, string>>({})
-  let pollTimer: ReturnType<typeof setTimeout> | null = null
+  /** Bumped on every re-render so `<img>` reloads files that kept their name. */
+  const renderVersion = ref(0)
+  let stopWatching: (() => void) | null = null
   let generation = 0
 
-  const entries = computed(() => listing.value?.entries.filter((entry) =>
-    (PACKAGE_SHOWCASE_TYPES as readonly string[]).includes(entry.assetType)) ?? [])
-  const filteredEntries = computed(() => (filter.value === 'All' ? entries.value : entries.value.filter((entry) => entry.assetType === filter.value)))
-  const typeCounts = computed(() => Object.fromEntries(['All', ...PACKAGE_SHOWCASE_TYPES].map((type) =>
-    [type, type === 'All' ? entries.value.length : entries.value.filter((entry) => entry.assetType === type).length])))
+  const entries = computed(
+    () =>
+      listing.value?.entries.filter((entry) =>
+        (PACKAGE_SHOWCASE_TYPES as readonly string[]).includes(entry.assetType),
+      ) ?? [],
+  )
+  const filteredEntries = computed(() =>
+    filter.value === 'All' ? entries.value : entries.value.filter((entry) => entry.assetType === filter.value),
+  )
+  const typeCounts = computed(() =>
+    Object.fromEntries(
+      ['All', ...PACKAGE_SHOWCASE_TYPES].map((type) => [
+        type,
+        type === 'All' ? entries.value.length : entries.value.filter((entry) => entry.assetType === type).length,
+      ]),
+    ),
+  )
 
   /** Unity render for prefabs, else the preview embedded in the package. */
   function thumbnail(entry: PackageAssetEntry): string | null {
-    const rendered = entry.assetType === 'Prefab' ? images.value[outputFiles.value[entry.pathname] ?? ''] : undefined
-    return rendered ?? entry.preview
+    const rendered = entry.assetType === 'Prefab' ? outputFiles.value[entry.pathname] : undefined
+    if (rendered && renderedFiles.value.has(rendered))
+      return packageService.previewUrl(folder.value, rendered, renderVersion.value)
+    return packageService.embeddedPreviewUrl(entry.previewPath)
   }
 
-  function stopPolling(): void {
-    if (pollTimer) clearTimeout(pollTimer)
-    pollTimer = null
+  function unwatch(): void {
+    stopWatching?.()
+    stopWatching = null
   }
 
-  function pollRenders(current: number, remaining: number): void {
-    stopPolling()
-    const missing = Object.values(outputFiles.value).some((file) => !(file in images.value))
-    if (!missing || remaining <= 0) return
-    pollTimer = setTimeout(async () => {
-      if (current !== generation || !open.value) return
-      try {
-        const latest = await packageService.readPreviewImages(asset().filePath)
-        if (current !== generation) return
-        if (Object.keys(latest).length !== Object.keys(images.value).length) images.value = latest
-      } catch {
-        return
-      }
-      pollRenders(current, remaining - 1)
-    }, RENDER_POLL_INTERVAL_MS)
+  async function watchRenders(path: string, current: number): Promise<void> {
+    unwatch()
+    const stop = await packageService.onPreviewsChanged(path, async () => {
+      const files = await packageService.listPreviewFiles(path)
+      if (current !== generation) return
+      renderedFiles.value = new Set(files)
+      renderVersion.value++
+    })
+    if (current === generation && open.value) stopWatching = stop
+    else stop()
   }
 
   async function load(refresh = false): Promise<void> {
     const current = ++generation
-    stopPolling()
     loading.value = true
     error.value = ''
     try {
@@ -69,11 +77,12 @@ export function usePackageShowcase(asset: () => Asset) {
       const parsed = await packageService.listAssets(path, { refresh })
       if (current !== generation) return
       listing.value = parsed
-      const folder = await packageService.requestPreviews(path, parsed)
+      const previews = await packageService.requestPreviews(path, parsed)
       if (current !== generation) return
-      outputFiles.value = folder.outputFiles
-      images.value = folder.images
-      pollRenders(current, RENDER_POLL_LIMIT)
+      folder.value = previews.path
+      outputFiles.value = previews.outputFiles
+      renderedFiles.value = new Set(previews.files)
+      await watchRenders(path, current)
     } catch (reason) {
       if (current === generation) error.value = errorMessage(reason)
     } finally {
@@ -84,7 +93,7 @@ export function usePackageShowcase(asset: () => Asset) {
   async function toggle(): Promise<void> {
     if (open.value) {
       open.value = false
-      stopPolling()
+      unwatch()
       return
     }
     open.value = true
@@ -93,13 +102,14 @@ export function usePackageShowcase(asset: () => Asset) {
 
   function reset(): void {
     generation++
-    stopPolling()
+    unwatch()
     listing.value = null
     loading.value = false
     error.value = ''
     open.value = false
     filter.value = 'All'
-    images.value = {}
+    folder.value = ''
+    renderedFiles.value = new Set()
     outputFiles.value = {}
   }
 
@@ -108,7 +118,21 @@ export function usePackageShowcase(asset: () => Asset) {
     reset()
   }
 
-  onUnmounted(stopPolling)
+  onUnmounted(unwatch)
 
-  return { listing, loading, error, open, filter, entries, filteredEntries, typeCounts, thumbnail, load, toggle, clearPreviews, reset }
+  return {
+    listing,
+    loading,
+    error,
+    open,
+    filter,
+    entries,
+    filteredEntries,
+    typeCounts,
+    thumbnail,
+    load,
+    toggle,
+    clearPreviews,
+    reset,
+  }
 }

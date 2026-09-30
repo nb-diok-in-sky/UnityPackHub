@@ -25,14 +25,53 @@ const { t } = useI18n()
       <span v-if="preview.job.progress && preview.job.running" class="topbar__progress">
         {{ preview.job.progress.completed }}/{{ preview.job.progress.total }}
       </span>
-      <q-btn v-if="preview.job.running" flat dense round icon="stop_circle" size="sm" color="negative" :title="t.cancel" @click="preview.job.cancel" />
+      <q-btn
+        v-if="preview.job.running"
+        flat
+        dense
+        round
+        icon="stop_circle"
+        size="sm"
+        color="negative"
+        :title="t.cancel"
+        @click="preview.job.cancel"
+      />
       <template v-if="browse.kind === 'model'">
-        <q-btn flat dense round icon="add_photo_alternate" size="sm" color="grey-7" :loading="preview.job.running" :title="t.generateModelCovers" @click="preview.open" />
+        <q-btn
+          flat
+          dense
+          round
+          icon="add_photo_alternate"
+          size="sm"
+          color="grey-7"
+          :loading="preview.job.running"
+          :title="t.generateModelCovers"
+          @click="preview.open"
+        />
         <ModelFilterMenus />
       </template>
       <ViewOptions />
-      <q-btn flat dense round icon="refresh" size="sm" color="grey-7" :loading="library.isScanning" :title="t.refresh" @click="library.scan" />
-      <q-btn flat dense round icon="settings" size="sm" color="grey-7" :title="t.settings" @click="emit('open-settings')" />
+      <q-btn
+        flat
+        dense
+        round
+        icon="refresh"
+        size="sm"
+        color="grey-7"
+        :loading="library.isScanning"
+        :title="t.refresh"
+        @click="library.scan"
+      />
+      <q-btn
+        flat
+        dense
+        round
+        icon="settings"
+        size="sm"
+        color="grey-7"
+        :title="t.settings"
+        @click="emit('open-settings')"
+      />
     </div>
 
     <ModelPreviewBatchDialog
@@ -49,9 +88,40 @@ const { t } = useI18n()
 
 <style scoped lang="scss">
 @use '../styles/variables' as *;
-.topbar { height: $topbar-height; display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid $color-border; background: $glass-background; backdrop-filter: $glass-blur; -webkit-app-region: drag; }
-.topbar__title { min-width: 140px; color: $color-text; font-size: 15px; font-weight: 700; white-space: nowrap; }
-.topbar__search { flex: 1; max-width: 400px; -webkit-app-region: no-drag; }
-.topbar__actions { display: flex; align-items: center; gap: 4px; margin-left: auto; -webkit-app-region: no-drag; }
-.topbar__progress { min-width: 48px; color: $color-secondary; font-size: 11px; text-align: right; }
+.topbar {
+  height: $topbar-height;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid $color-border;
+  background: $glass-background;
+  backdrop-filter: $glass-blur;
+  -webkit-app-region: drag;
+}
+.topbar__title {
+  min-width: 140px;
+  color: $color-text;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.topbar__search {
+  flex: 1;
+  max-width: 400px;
+  -webkit-app-region: no-drag;
+}
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+.topbar__progress {
+  min-width: 48px;
+  color: $color-secondary;
+  font-size: 11px;
+  text-align: right;
+}
 </style>

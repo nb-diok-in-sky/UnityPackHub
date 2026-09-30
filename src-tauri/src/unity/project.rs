@@ -12,9 +12,13 @@ pub fn detect_unity_project() -> Result<Option<String>, String> {
             .map_err(|error| error.to_string())?;
         for line in String::from_utf8_lossy(&output.stdout).lines() {
             // Batch-mode instances are asset import workers or UnityPackHub's own preview renderer.
-            if line.to_ascii_lowercase().contains("-batchmode") { continue; }
+            if line.to_ascii_lowercase().contains("-batchmode") {
+                continue;
+            }
             if let Some(path) = project_path_from_command_line(line) {
-                if Path::new(&path).join("Assets").exists() { return Ok(Some(path)); }
+                if Path::new(&path).join("Assets").exists() {
+                    return Ok(Some(path));
+                }
             }
         }
     }
@@ -24,7 +28,8 @@ pub fn detect_unity_project() -> Result<Option<String>, String> {
 fn project_path_from_command_line(command_line: &str) -> Option<String> {
     let index = command_line.to_ascii_lowercase().find("-projectpath")?;
     let value = command_line[index + 12..].trim();
-    let path = if let Some(quoted) = value.strip_prefix('"') { quoted.split('"').next()? } else { value.split(' ').next()? };
+    let path =
+        if let Some(quoted) = value.strip_prefix('"') { quoted.split('"').next()? } else { value.split(' ').next()? };
     (!path.is_empty()).then(|| path.to_string())
 }
 
@@ -34,7 +39,13 @@ mod tests {
 
     #[test]
     fn parses_quoted_and_plain_project_paths() {
-        assert_eq!(project_path_from_command_line("Unity.exe -projectPath \"C:\\My Project\" -logFile"), Some("C:\\My Project".into()));
-        assert_eq!(project_path_from_command_line("Unity.exe -projectPath C:\\Project -batchmode"), Some("C:\\Project".into()));
+        assert_eq!(
+            project_path_from_command_line("Unity.exe -projectPath \"C:\\My Project\" -logFile"),
+            Some("C:\\My Project".into())
+        );
+        assert_eq!(
+            project_path_from_command_line("Unity.exe -projectPath C:\\Project -batchmode"),
+            Some("C:\\Project".into())
+        );
     }
 }

@@ -13,10 +13,13 @@ export const classificationService = {
   async sync(jsonPath: string, assets: Asset[]): Promise<Classification> {
     const classification = classifyModels(await backend.readAssetMetadataTable(jsonPath), assets)
     const existing = await groupRepository.getAll()
-    const generated = new Map(existing
-      .filter((group) => group.source === SOURCE && group.sourceKey)
-      .map((group) => [group.sourceKey as string, group]))
-    const firstOrder = existing.filter((group) => group.source !== SOURCE).reduce((max, group) => Math.max(max, group.order), 0) + 1
+    const generated = new Map(
+      existing
+        .filter((group) => group.source === SOURCE && group.sourceKey)
+        .map((group) => [group.sourceKey as string, group]),
+    )
+    const firstOrder =
+      existing.filter((group) => group.source !== SOURCE).reduce((max, group) => Math.max(max, group.order), 0) + 1
 
     const categories = [...classification.assetIdsByCategory.keys()].sort((left, right) => left.localeCompare(right))
     for (const [index, category] of categories.entries()) {
@@ -25,7 +28,17 @@ export const classificationService = {
       generated.delete(category)
       const group: AssetGroup = current
         ? { ...current, name: category, assetIds, order: firstOrder + index }
-        : { id: uuid(), name: category, icon: ICON, assetIds, order: firstOrder + index, createdAt: Date.now(), source: SOURCE, sourceKey: category, assetKind: 'model' }
+        : {
+            id: uuid(),
+            name: category,
+            icon: ICON,
+            assetIds,
+            order: firstOrder + index,
+            createdAt: Date.now(),
+            source: SOURCE,
+            sourceKey: category,
+            assetKind: 'model',
+          }
       await groupRepository.put(group)
     }
     await groupRepository.delete([...generated.values()].map((group) => group.id))

@@ -1,43 +1,37 @@
 <script setup lang="ts">
-import type { RelatedFile } from "../../platform/backend";
-import { formatBytes } from "../../utils/formatBytes";
-import { useI18n } from "../../i18n";
-defineProps<{ file: RelatedFile }>();
-defineEmits<{ open: [] }>();
-const { t } = useI18n();
+import type { RelatedFile } from '../../platform/backend'
+import { formatBytes } from '../../utils/formatBytes'
+import { useI18n } from '../../i18n'
+defineProps<{ file: RelatedFile }>()
+defineEmits<{ open: [] }>()
+const { t } = useI18n()
 const icons: Record<string, string> = {
-  texture: "image",
-  material: "palette",
-  prefab: "widgets",
-  model: "view_in_ar",
-};
+  texture: 'image',
+  material: 'palette',
+  prefab: 'widgets',
+  model: 'view_in_ar',
+}
 const labels: Record<string, string> = {
   texture: t.assetTypeTexture,
   material: t.assetTypeMaterial,
   prefab: t.assetTypePrefab,
   model: t.assetTypeModel,
-};
+}
 </script>
 <template>
   <button class="row" :title="file.filePath" @click="$emit('open')">
     <span class="row__icon"
-      ><q-icon
-        :name="icons[file.fileType] ?? 'insert_drive_file'"
-        size="24px"
-        color="grey-5" /></span
+      ><q-icon :name="icons[file.fileType] ?? 'insert_drive_file'" size="24px" color="grey-5" /></span
     ><span class="row__info"
       ><strong>{{ file.fileName }}</strong
-      ><small
-        >{{ labels[file.fileType] ?? t.assetTypeOther }} ·
-        {{ formatBytes(file.fileSize) }}</small
-      ></span
+      ><small>{{ labels[file.fileType] ?? t.assetTypeOther }} · {{ formatBytes(file.fileSize) }}</small></span
     ><span class="row__badge" :class="`row__badge--${file.fileType}`">{{
       labels[file.fileType] ?? t.assetTypeOther
     }}</span>
   </button>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .row {
   display: flex;
   align-items: center;

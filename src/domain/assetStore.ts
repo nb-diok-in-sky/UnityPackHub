@@ -2,7 +2,8 @@
 
 const ASSET_STORE_ORIGIN = 'https://assetstore.unity.com'
 
-const PACKAGE_URL = /^https:\/\/assetstore\.unity\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?packages\/(?:package\/\d+|[^?#]+-\d+)(?:[?#].*)?$/i
+const PACKAGE_URL =
+  /^https:\/\/assetstore\.unity\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?packages\/(?:package\/\d+|[^?#]+-\d+)(?:[?#].*)?$/i
 
 /** Search URL for a package file name, without extension and version suffixes. */
 export function assetStoreSearchUrl(assetName: string): string {

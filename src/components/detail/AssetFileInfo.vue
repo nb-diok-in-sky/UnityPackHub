@@ -1,26 +1,23 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Asset } from "../../types/asset";
-import { formatBytes } from "../../utils/formatBytes";
-import { useI18n } from "../../i18n";
-const { locale } = useI18n();
+import { computed } from 'vue'
+import type { Asset } from '../../types/asset'
+import { formatBytes } from '../../utils/formatBytes'
+import { useI18n } from '../../i18n'
+const { locale } = useI18n()
 
 const props = defineProps<{
-  asset: Asset;
-  title: string;
-  fileNameLabel: string;
-  fileSizeLabel: string;
-  dateLabel: string;
-  pathLabel: string;
-}>();
+  asset: Asset
+  title: string
+  fileNameLabel: string
+  fileSizeLabel: string
+  dateLabel: string
+  pathLabel: string
+}>()
 const rows = computed(() => [
   [props.fileNameLabel, props.asset.fileName],
   [props.fileSizeLabel, formatBytes(props.asset.fileSize)],
-  [
-    props.dateLabel,
-    new Date(props.asset.createdAt).toLocaleDateString(locale.value),
-  ],
-]);
+  [props.dateLabel, new Date(props.asset.createdAt).toLocaleDateString(locale.value)],
+])
 </script>
 
 <template>
@@ -32,15 +29,13 @@ const rows = computed(() => [
         ><span class="value">{{ row[1] }}</span>
       </template>
       <span class="key">{{ pathLabel }}</span>
-      <span class="value path" :title="asset.filePath">{{
-        asset.filePath
-      }}</span>
+      <span class="value path" :title="asset.filePath">{{ asset.filePath }}</span>
     </div>
   </section>
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .section {
   display: flex;
   flex-direction: column;

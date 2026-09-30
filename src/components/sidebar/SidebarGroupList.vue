@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { AssetGroup } from "../../types/asset";
+import type { AssetGroup } from '../../types/asset'
 
 defineProps<{
-  groups: AssetGroup[];
-  activeId: string | null;
-  editLabel: string;
-  deleteLabel: string;
-}>();
+  groups: AssetGroup[]
+  activeId: string | null
+  editLabel: string
+  deleteLabel: string
+}>()
 defineEmits<{
-  select: [id: string];
-  edit: [group: AssetGroup];
-  delete: [id: string];
-}>();
+  select: [id: string]
+  edit: [group: AssetGroup]
+  delete: [id: string]
+}>()
 </script>
 
 <template>
@@ -29,13 +29,11 @@ defineEmits<{
       <span class="count">{{ group.assetIds.length }}</span>
       <q-menu context-menu>
         <q-list dense>
-          <q-item clickable v-close-popup @click="$emit('edit', group)">
+          <q-item v-close-popup clickable @click="$emit('edit', group)">
             <q-item-section>{{ editLabel }}</q-item-section>
           </q-item>
-          <q-item clickable v-close-popup @click="$emit('delete', group.id)">
-            <q-item-section class="text-negative">{{
-              deleteLabel
-            }}</q-item-section>
+          <q-item v-close-popup clickable @click="$emit('delete', group.id)">
+            <q-item-section class="text-negative">{{ deleteLabel }}</q-item-section>
           </q-item>
         </q-list>
       </q-menu>
@@ -44,7 +42,7 @@ defineEmits<{
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .nav {
   display: flex;
   flex-direction: column;

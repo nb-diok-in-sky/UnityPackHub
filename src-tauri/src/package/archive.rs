@@ -22,17 +22,26 @@ pub fn read_package(path: &str, include_previews: bool) -> Result<PackageContent
     for entry_result in entries {
         // A broken gzip/tar stream cannot be resumed; report it instead of returning a partial list.
         let mut entry = entry_result.map_err(|error| format!("Package is corrupted or truncated: {error}"))?;
-        let entry_path = match entry.path() { Ok(path) => path.to_string_lossy().to_string(), Err(_) => continue };
+        let entry_path = match entry.path() {
+            Ok(path) => path.to_string_lossy().to_string(),
+            Err(_) => continue,
+        };
         let Some((guid, entry_name)) = split_entry_path(&entry_path) else { continue };
 
         match entry_name {
-            "pathname" => if let Some(pathname) = read_pathname(&mut entry) {
-                content.pathnames.insert(guid.to_string(), pathname);
-            },
-            "preview.png" if include_previews => if let Some(data) = read_bytes(&mut entry) {
-                content.previews.insert(guid.to_string(), data);
-            },
-            "asset" | "asset.meta" => { content.assets.insert(guid.to_string()); },
+            "pathname" => {
+                if let Some(pathname) = read_pathname(&mut entry) {
+                    content.pathnames.insert(guid.to_string(), pathname);
+                }
+            }
+            "preview.png" if include_previews => {
+                if let Some(data) = read_bytes(&mut entry) {
+                    content.previews.insert(guid.to_string(), data);
+                }
+            }
+            "asset" | "asset.meta" => {
+                content.assets.insert(guid.to_string());
+            }
             _ => {}
         }
     }
@@ -43,7 +52,11 @@ pub fn split_entry_path(path: &str) -> Option<(&str, &str)> {
     // Some exporters write entries as "./<guid>/pathname" instead of "<guid>/pathname".
     let path = path.trim_start_matches("./");
     let (guid, name) = path.split_once('/')?;
-    if name.contains('/') { None } else { Some((guid, name)) }
+    if name.contains('/') {
+        None
+    } else {
+        Some((guid, name))
+    }
 }
 
 pub fn read_pathname(reader: &mut impl Read) -> Option<String> {

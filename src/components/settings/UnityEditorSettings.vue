@@ -30,9 +30,24 @@ async function chooseEditor(): Promise<void> {
 
 <template>
   <div class="text-subtitle2 q-mb-sm">{{ t.unityEditorPath }}</div>
-  <q-input :model-value="settingsStore.settings.unityEditorPath" dense outlined readonly :placeholder="t.unityPathHint" class="q-mb-sm" />
+  <q-input
+    :model-value="settingsStore.settings.unityEditorPath"
+    dense
+    outlined
+    readonly
+    :placeholder="t.unityPathHint"
+    class="q-mb-sm"
+  />
   <div class="row q-gutter-sm">
-    <q-btn outline dense :label="t.detectUnityEditors" icon="search" color="primary" :loading="isDetecting" @click="detectEditors" />
+    <q-btn
+      outline
+      dense
+      :label="t.detectUnityEditors"
+      icon="search"
+      color="primary"
+      :loading="isDetecting"
+      @click="detectEditors"
+    />
     <q-btn outline dense :label="t.chooseUnityEditor" icon="folder_open" color="primary" @click="chooseEditor" />
   </div>
   <q-list v-if="detectedEditors.length > 1" dense bordered class="q-mt-sm">
@@ -44,5 +59,11 @@ async function chooseEditor(): Promise<void> {
 
 <style scoped lang="scss">
 @use '../../styles/variables' as *;
-.editor-path { overflow: hidden; color: $color-secondary; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.editor-path {
+  overflow: hidden;
+  color: $color-secondary;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>

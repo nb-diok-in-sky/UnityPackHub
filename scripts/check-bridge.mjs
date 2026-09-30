@@ -14,10 +14,15 @@ const bridge = join(root, 'src-tauri', 'src', 'bridge')
 function editors() {
   const roots = ['C:\\Program Files\\Unity\\Hub\\Editor']
   try {
-    const custom = JSON.parse(readFileSync(join(process.env.APPDATA ?? '', 'UnityHub', 'secondaryInstallPath.json'), 'utf8'))
+    const custom = JSON.parse(
+      readFileSync(join(process.env.APPDATA ?? '', 'UnityHub', 'secondaryInstallPath.json'), 'utf8'),
+    )
     if (custom) roots.push(custom)
-  } catch { /* no custom install location */ }
-  return roots.filter(existsSync)
+  } catch {
+    /* no custom install location */
+  }
+  return roots
+    .filter(existsSync)
     .flatMap((directory) => readdirSync(directory).map((version) => join(directory, version, 'Editor', 'Unity.exe')))
     .filter(existsSync)
     .sort()
@@ -34,8 +39,13 @@ console.log(`Checking bridge scripts against ${editor}`)
 
 const work = join(tmpdir(), 'unitypackhub-bridge-check')
 mkdirSync(work, { recursive: true })
-writeFileSync(join(work, 'global.json'), JSON.stringify({ sdk: { rollForward: 'latestMajor', allowPrerelease: false } }))
-writeFileSync(join(work, 'BridgeCheck.csproj'), `<Project Sdk="Microsoft.NET.Sdk">
+writeFileSync(
+  join(work, 'global.json'),
+  JSON.stringify({ sdk: { rollForward: 'latestMajor', allowPrerelease: false } }),
+)
+writeFileSync(
+  join(work, 'BridgeCheck.csproj'),
+  `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>9.0</LangVersion>
@@ -50,7 +60,8 @@ writeFileSync(join(work, 'BridgeCheck.csproj'), `<Project Sdk="Microsoft.NET.Sdk
     <Reference Include="${join(managed, '*.dll')}" Exclude="${join(managed, 'UnityEditor.dll')}" Private="false" />
   </ItemGroup>
 </Project>
-`)
+`,
+)
 
 try {
   execFileSync('dotnet', ['build', '-nologo', '-v', 'q', '-clp:ErrorsOnly'], { cwd: work, stdio: 'inherit' })

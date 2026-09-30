@@ -3,8 +3,11 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 struct BoundsSize {
-    x: Option<f64>, y: Option<f64>, z: Option<f64>,
-    unit: Option<String>, source: Option<String>,
+    x: Option<f64>,
+    y: Option<f64>,
+    z: Option<f64>,
+    unit: Option<String>,
+    source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,7 +85,9 @@ fn convert(entry: RawMetadataEntry, fallback_path: String) -> AssetMetadata {
 fn bounds_text(bounds: Option<BoundsSize>) -> Option<String> {
     let bounds = bounds?;
     match (bounds.x, bounds.y, bounds.z) {
-        (Some(x), Some(y), Some(z)) => Some(format!("{x:.2} x {y:.2} x {z:.2} {}", bounds.unit.unwrap_or_else(|| "Unity world unit".into()))),
+        (Some(x), Some(y), Some(z)) => {
+            Some(format!("{x:.2} x {y:.2} x {z:.2} {}", bounds.unit.unwrap_or_else(|| "Unity world unit".into())))
+        }
         _ => bounds.source,
     }
 }

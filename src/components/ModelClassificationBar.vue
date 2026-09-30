@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAssetStore } from '../stores/assetStore'
 import { useBrowseStore } from '../stores/browseStore'
 import { useGroupStore } from '../stores/groupStore'
 import { useI18n } from '../i18n'
 
-const assetStore = useAssetStore()
 const browse = useBrowseStore()
 const groupStore = useGroupStore()
 const { t } = useI18n()
 
-const classifications = computed(() =>
-  groupStore.classificationGroups.filter((group) => group.assetKind === 'model')
-)
+const classifications = computed(() => groupStore.classificationGroups.filter((group) => group.assetKind === 'model'))
 
 function selectClassification(id: string | null): void {
   browse.showGroup(id)

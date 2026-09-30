@@ -25,12 +25,16 @@ export const useTagStore = defineStore('tags', () => {
     const settings = useSettingsStore()
     if (!settings.settings.defaultPipelineTagsInitialized) {
       for (const tag of PIPELINE_TAGS) {
-        const exists = tags.value.some((current) => current.id === tag.id || current.label.toLowerCase() === tag.label.toLowerCase())
+        const exists = tags.value.some(
+          (current) => current.id === tag.id || current.label.toLowerCase() === tag.label.toLowerCase(),
+        )
         if (exists) continue
         await tagRecords.save(tag)
         tags.value.push({ ...tag })
       }
-      await settings.update((draft) => { draft.defaultPipelineTagsInitialized = true })
+      await settings.update((draft) => {
+        draft.defaultPipelineTagsInitialized = true
+      })
     }
     sort()
   }

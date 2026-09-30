@@ -1,40 +1,32 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Asset } from "../../types/asset";
-import { useI18n } from "../../i18n";
-import {
-  PACKAGE_SHOWCASE_TYPES,
-  usePackageShowcase,
-} from "../../composables/usePackageShowcase";
-import PackageShowcaseCard from "./PackageShowcaseCard.vue";
-import CollapsibleSectionHeader from "../shared/CollapsibleSectionHeader.vue";
-import FilterChipBar from "../shared/FilterChipBar.vue";
-import SectionState from "../shared/SectionState.vue";
-import type { FilterOption } from "../../types/ui";
+import { computed } from 'vue'
+import type { Asset } from '../../types/asset'
+import { useI18n } from '../../i18n'
+import { PACKAGE_SHOWCASE_TYPES, usePackageShowcase } from '../../composables/usePackageShowcase'
+import PackageShowcaseCard from './PackageShowcaseCard.vue'
+import CollapsibleSectionHeader from '../shared/CollapsibleSectionHeader.vue'
+import FilterChipBar from '../shared/FilterChipBar.vue'
+import SectionState from '../shared/SectionState.vue'
+import type { FilterOption } from '../../types/ui'
 
-const props = defineProps<{ asset: Asset }>();
-const { t } = useI18n();
-const showcase = usePackageShowcase(() => props.asset);
+const props = defineProps<{ asset: Asset }>()
+const { t } = useI18n()
+const showcase = usePackageShowcase(() => props.asset)
 const icons: Record<string, string> = {
-  Prefab: "widgets",
-  Texture: "image",
-  Script: "description",
-};
-const filterOptions = computed<
-  FilterOption<(typeof PACKAGE_SHOWCASE_TYPES)[number] | "All">[]
->(() =>
-  (["All", ...PACKAGE_SHOWCASE_TYPES] as const).map((value) => ({
+  Prefab: 'widgets',
+  Texture: 'image',
+  Script: 'description',
+}
+const filterOptions = computed<FilterOption<(typeof PACKAGE_SHOWCASE_TYPES)[number] | 'All'>[]>(() =>
+  (['All', ...PACKAGE_SHOWCASE_TYPES] as const).map((value) => ({
     value,
-    label:
-      value === "All"
-        ? t.assetTypeAll
-        : t[`assetType${value}` as keyof typeof t],
+    label: value === 'All' ? t.assetTypeAll : t[`assetType${value}` as keyof typeof t],
     count: showcase.typeCounts.value[value] ?? 0,
-    ...(value === "All" ? {} : { icon: icons[value] }),
+    ...(value === 'All' ? {} : { icon: icons[value] }),
   })),
-);
+)
 
-defineExpose({ reset: showcase.reset });
+defineExpose({ reset: showcase.reset })
 </script>
 
 <template>
@@ -71,10 +63,7 @@ defineExpose({ reset: showcase.reset });
       </template>
     </CollapsibleSectionHeader>
 
-    <SectionState
-      :loading="showcase.loading.value"
-      :loading-text="t.loadingContents"
-    />
+    <SectionState :loading="showcase.loading.value" :loading-text="t.loadingContents" />
 
     <div v-if="showcase.open.value && showcase.error.value" class="showcase__error">{{ showcase.error.value }}</div>
     <template v-if="showcase.open.value && showcase.listing.value">
@@ -95,16 +84,13 @@ defineExpose({ reset: showcase.reset });
           :thumbnail="showcase.thumbnail(entry)"
         />
       </div>
-      <SectionState
-        :empty="showcase.filteredEntries.value.length === 0"
-        :empty-text="t.noRelatedFiles"
-      />
+      <SectionState :empty="showcase.filteredEntries.value.length === 0" :empty-text="t.noRelatedFiles" />
     </template>
   </section>
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .showcase {
   display: flex;
   flex-direction: column;

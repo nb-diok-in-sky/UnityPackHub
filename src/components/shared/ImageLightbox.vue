@@ -1,6 +1,6 @@
 <script setup lang="ts">
-defineProps<{ src: string; title: string; subtitle?: string }>();
-const open = defineModel<boolean>({ required: true });
+defineProps<{ src: string; title: string; subtitle?: string }>()
+const open = defineModel<boolean>({ required: true })
 </script>
 <template>
   <Teleport to="body"
@@ -14,21 +14,14 @@ const open = defineModel<boolean>({ required: true });
               ><small>{{ subtitle }}</small>
             </div>
             <div>
-              <slot name="actions" /><q-btn
-                flat
-                dense
-                round
-                icon="close"
-                color="grey-5"
-                @click="open = false"
-              />
+              <slot name="actions" /><q-btn flat dense round icon="close" color="grey-5" @click="open = false" />
             </div>
           </footer>
         </div></div></Transition
   ></Teleport>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .lightbox {
   position: fixed;
   inset: 0;

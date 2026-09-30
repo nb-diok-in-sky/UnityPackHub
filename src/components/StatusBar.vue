@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAssetStore } from '../stores/assetStore'
 import { useBrowseStore } from '../stores/browseStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useI18n } from '../i18n'
 import { formatBytes } from '../utils/formatBytes'
 
-const assetStore = useAssetStore()
 const browse = useBrowseStore()
 const library = useLibraryStore()
 const { t, tr } = useI18n()
@@ -68,7 +66,9 @@ const totalSizeDisplay = computed(() => formatBytes(browse.totalSize))
   color: $color-secondary;
   font-size: inherit;
   cursor: pointer;
-  &:hover { color: $apple-blue; }
+  &:hover {
+    color: $apple-blue;
+  }
 }
 
 .statusbar__dot {

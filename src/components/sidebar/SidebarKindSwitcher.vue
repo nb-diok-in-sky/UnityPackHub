@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { AssetKind } from "../../types/asset";
+import type { AssetKind } from '../../types/asset'
 
 defineProps<{
-  activeKind: AssetKind;
-  packageCount: number;
-  modelCount: number;
-  packageLabel: string;
-  modelLabel: string;
-}>();
+  activeKind: AssetKind
+  packageCount: number
+  modelCount: number
+  packageLabel: string
+  modelLabel: string
+}>()
 
-defineEmits<{ select: [kind: AssetKind] }>();
+defineEmits<{ select: [kind: AssetKind] }>()
 </script>
 
 <template>
@@ -42,7 +42,7 @@ defineEmits<{ select: [kind: AssetKind] }>();
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 
 .kind-switcher {
   display: grid;

@@ -10,9 +10,11 @@ export function initialModelPreview(filePath: string): ModelPreviewState {
 }
 
 export function needsModelPreview(asset: Asset): boolean {
-  return asset.assetKind === 'model'
-    && (asset.modelPreview?.eligible ?? true)
-    && (asset.modelPreview?.version ?? 0) < MODEL_PREVIEW_VERSION
+  return (
+    asset.assetKind === 'model' &&
+    (asset.modelPreview?.eligible ?? true) &&
+    (asset.modelPreview?.version ?? 0) < MODEL_PREVIEW_VERSION
+  )
 }
 
 export function modelCoverStatus(asset: Asset): ModelCoverStatus {
@@ -27,8 +29,9 @@ function isLikelyRenderableModel(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, '/').toLowerCase()
   const name = normalized.split('/').pop() ?? ''
   const isAnimationDirectory = /\/(animation|animations|anim|motion|motions)\//.test(normalized)
-  const isAnimationName = /^@/.test(name)
-    || /(^|[_-])(idle|walk|run|attack|skill|motion|anim|strafing|meditate|pickup|greet)([_-]|\.)/.test(name)
+  const isAnimationName =
+    /^@/.test(name) ||
+    /(^|[_-])(idle|walk|run|attack|skill|motion|anim|strafing|meditate|pickup|greet)([_-]|\.)/.test(name)
   return !(isAnimationDirectory || isAnimationName)
 }
 

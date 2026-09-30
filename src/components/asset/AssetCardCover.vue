@@ -1,49 +1,43 @@
 <script setup lang="ts">
-import { computed, watchEffect } from "vue";
-import type { Asset } from "../../types/asset";
-import { modelCoverStatus } from "../../domain/modelCover";
-import { useCoverStore } from "../../stores/coverStore";
-import { useUnityProjectStore } from "../../stores/unityProjectStore";
-import { useI18n } from "../../i18n";
-const props = defineProps<{ asset: Asset }>();
-const emit = defineEmits<{ favorite: [event: MouseEvent] }>();
-const covers = useCoverStore();
-const project = useUnityProjectStore();
-const { t, tr } = useI18n();
-const src = computed(() => covers.url(props.asset.id) ?? "");
-const initial = computed(() => props.asset.name.trim().charAt(0).toUpperCase());
-const status = computed(() => modelCoverStatus(props.asset));
-const unity = computed(() => project.stateOf(props.asset.id));
+import { computed, watchEffect } from 'vue'
+import type { Asset } from '../../types/asset'
+import { modelCoverStatus } from '../../domain/modelCover'
+import { useCoverStore } from '../../stores/coverStore'
+import { useUnityProjectStore } from '../../stores/unityProjectStore'
+import { useI18n } from '../../i18n'
+const props = defineProps<{ asset: Asset }>()
+const emit = defineEmits<{ favorite: [event: MouseEvent] }>()
+const covers = useCoverStore()
+const project = useUnityProjectStore()
+const { t, tr } = useI18n()
+const src = computed(() => covers.url(props.asset.id) ?? '')
+const initial = computed(() => props.asset.name.trim().charAt(0).toUpperCase())
+const status = computed(() => modelCoverStatus(props.asset))
+const unity = computed(() => project.stateOf(props.asset.id))
 const statusText = computed(
   () =>
     ({
       pending: t.modelCoverPending,
       completed: t.modelCoverCompleted,
       failed: t.modelCoverFailed,
-      "not-needed": t.modelCoverNotNeeded,
+      'not-needed': t.modelCoverNotNeeded,
     })[status.value],
-);
+)
 const statusIcon = {
-  pending: "hourglass_empty",
-  completed: "check_circle",
-  failed: "error",
-  "not-needed": "remove_circle_outline",
-};
+  pending: 'hourglass_empty',
+  completed: 'check_circle',
+  failed: 'error',
+  'not-needed': 'remove_circle_outline',
+}
 // Also re-runs when the cache evicts this cover, so a visible card never stays blank.
 watchEffect(() => {
-  if (props.asset.cover === "stored" && !covers.url(props.asset.id)) void covers.ensure(props.asset.id);
-});
+  if (props.asset.cover === 'stored' && !covers.url(props.asset.id)) void covers.ensure(props.asset.id)
+})
 </script>
 <template>
   <div class="cover">
-    <div
-      v-if="asset.assetKind === 'model'"
-      class="cover__status"
-      :class="`cover__status--${status}`"
-    >
-      <q-icon :name="statusIcon[status]" size="13px" /><span>{{
-        statusText
-      }}</span>
+    <div v-if="asset.assetKind === 'model'" class="cover__status" :class="`cover__status--${status}`">
+      <q-icon :name="statusIcon[status]" size="13px" /><span>{{ statusText }}</span>
     </div>
     <div
       v-if="asset.assetKind === 'model' && project.isSynchronized"
@@ -68,17 +62,13 @@ watchEffect(() => {
         size="13px"
       />
     </div>
-    <div
-      v-if="project.duplicatesOf(asset.id).length"
-      class="cover__duplicate"
- :title="t.duplicateContentFound"
-    >
+    <div v-if="project.duplicatesOf(asset.id).length" class="cover__duplicate" :title="t.duplicateContentFound">
       <q-icon name="content_copy" size="12px" />
     </div>
     <img v-if="src" :src="src" :alt="asset.name" />
     <div v-else class="cover__placeholder">{{ initial }}</div>
     <span class="cover__kind" :class="`cover__kind--${asset.assetKind}`">{{
-      asset.assetKind === "model" ? "3D" : "PKG"
+      asset.assetKind === 'model' ? '3D' : 'PKG'
     }}</span
     ><button class="cover__favorite" @click="emit('favorite', $event)">
       <q-icon
@@ -90,7 +80,7 @@ watchEffect(() => {
   </div>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .cover {
   position: relative;
   width: 100%;

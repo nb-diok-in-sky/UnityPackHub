@@ -48,7 +48,7 @@ export function useCoverInput(asset: Ref<Asset>) {
     const data = event.dataTransfer
     if (!data) return
     const cover = data.getData('application/cover-image')
-    if (cover) return apply(() => coverService.imageFromDataUrl(cover))
+    if (cover) return apply(() => coverService.imageFromPageUrl(cover))
     if (data.files[0]) return fromFile(data.files[0])
     const url = data.getData('text/uri-list') || data.getData('text/plain')
     if (/^https?:\/\//i.test(url)) await apply(() => coverService.imageFromUrl(url))

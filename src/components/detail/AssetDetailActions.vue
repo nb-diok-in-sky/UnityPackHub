@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import { useI18n } from "../../i18n";
-const { t } = useI18n();
+import { useI18n } from '../../i18n'
+const { t } = useI18n()
 defineProps<{
-  isModel: boolean;
-  isFavorite: boolean;
-  isImporting: boolean;
-  isLocating: boolean;
-  status: string;
-  importingLabel: string;
-  importLabel: string;
-  revealLabel: string;
-}>();
+  isModel: boolean
+  isFavorite: boolean
+  isImporting: boolean
+  isLocating: boolean
+  status: string
+  importingLabel: string
+  importLabel: string
+  revealLabel: string
+}>()
 defineEmits<{
-  favorite: [];
-  import: [];
-  reveal: [];
-  locate: [];
-  searchStore: [];
-}>();
+  favorite: []
+  import: []
+  reveal: []
+  locate: []
+  searchStore: []
+}>()
 </script>
 
 <template>
@@ -85,7 +85,7 @@ defineEmits<{
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .name-row {
   display: flex;
   align-items: center;

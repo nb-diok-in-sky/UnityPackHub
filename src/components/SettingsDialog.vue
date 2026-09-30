@@ -13,7 +13,12 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <q-dialog :model-value="modelValue" position="right" full-height @update:model-value="emit('update:modelValue', $event)">
+  <q-dialog
+    :model-value="modelValue"
+    position="right"
+    full-height
+    @update:model-value="emit('update:modelValue', $event)"
+  >
     <q-card class="settings-panel">
       <q-card-section class="settings-panel__header">
         <div class="text-h6">{{ t.settings }}</div>
@@ -38,6 +43,14 @@ const { t } = useI18n()
 </template>
 
 <style scoped>
-.settings-panel { width: 380px; height: 100%; border-radius: 0; }
-.settings-panel__header { display: flex; align-items: center; justify-content: space-between; }
+.settings-panel {
+  width: 380px;
+  height: 100%;
+  border-radius: 0;
+}
+.settings-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 </style>

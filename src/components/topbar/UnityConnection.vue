@@ -10,7 +10,8 @@ const { t } = useI18n()
 const state = computed(() => {
   if (!unity.projectPath) return { color: 'grey', label: t.unityNotRunning, detail: t.unityNotRunningHint }
   if (unity.status === 'ready') return { color: 'positive', label: unity.projectName, detail: t.unityBridgeReady }
-  if (unity.status === 'outdated') return { color: 'warning', label: unity.projectName, detail: t.unityBridgeOutdatedStatus }
+  if (unity.status === 'outdated')
+    return { color: 'warning', label: unity.projectName, detail: t.unityBridgeOutdatedStatus }
   return { color: 'warning', label: unity.projectName, detail: t.unityBridgeNotLoaded }
 })
 
@@ -34,11 +35,25 @@ async function connect(): Promise<void> {
           <div class="unity-connection__detail">{{ state.detail }}</div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat dense no-caps icon="refresh" :label="t.refresh" :loading="unity.checking" @click="unity.refresh" />
+          <q-btn
+            flat
+            dense
+            no-caps
+            icon="refresh"
+            :label="t.refresh"
+            :loading="unity.checking"
+            @click="unity.refresh"
+          />
           <q-btn
             v-if="unity.projectPath && unity.status !== 'ready'"
-            unelevated dense no-caps color="primary" icon="link"
-            :label="t.unityConnect" :loading="unity.connecting" @click="connect"
+            unelevated
+            dense
+            no-caps
+            color="primary"
+            icon="link"
+            :label="t.unityConnect"
+            :loading="unity.connecting"
+            @click="connect"
           />
         </q-card-actions>
       </q-card>
@@ -48,10 +63,34 @@ async function connect(): Promise<void> {
 
 <style scoped lang="scss">
 @use '../../styles/variables' as *;
-.unity-connection { max-width: 200px; color: $color-secondary; }
-.unity-connection__dot { width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; flex-shrink: 0; }
-.unity-connection__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.unity-connection__card { width: 300px; }
-.unity-connection__path { margin-top: 2px; color: $color-secondary; font-size: 11px; word-break: break-all; }
-.unity-connection__detail { margin-top: 8px; font-size: 12px; }
+.unity-connection {
+  max-width: 200px;
+  color: $color-secondary;
+}
+.unity-connection__dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.unity-connection__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.unity-connection__card {
+  width: 300px;
+}
+.unity-connection__path {
+  margin-top: 2px;
+  color: $color-secondary;
+  font-size: 11px;
+  word-break: break-all;
+}
+.unity-connection__detail {
+  margin-top: 8px;
+  font-size: 12px;
+}
 </style>

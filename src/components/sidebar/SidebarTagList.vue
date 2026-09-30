@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import type { Tag } from "../../types/asset";
-import { useI18n } from "../../i18n";
+import type { Tag } from '../../types/asset'
+import { useI18n } from '../../i18n'
 
-const { t } = useI18n();
+const { t } = useI18n()
 
 defineProps<{
-  tags: Tag[];
-  activeId: string | null;
-  paintingId: string | null;
-  editLabel: string;
-  deleteLabel: string;
-}>();
+  tags: Tag[]
+  activeId: string | null
+  paintingId: string | null
+  editLabel: string
+  deleteLabel: string
+}>()
 defineEmits<{
-  select: [id: string];
-  edit: [tag: Tag];
-  delete: [id: string];
-  paint: [id: string];
-}>();
+  select: [id: string]
+  edit: [tag: Tag]
+  delete: [id: string]
+  paint: [id: string]
+}>()
 </script>
 
 <template>
@@ -32,13 +32,11 @@ defineEmits<{
         <span>{{ tag.label }}</span>
         <q-menu context-menu>
           <q-list dense>
-            <q-item clickable v-close-popup @click="$emit('edit', tag)">
+            <q-item v-close-popup clickable @click="$emit('edit', tag)">
               <q-item-section>{{ editLabel }}</q-item-section>
             </q-item>
-            <q-item clickable v-close-popup @click="$emit('delete', tag.id)">
-              <q-item-section class="text-negative">{{
-                deleteLabel
-              }}</q-item-section>
+            <q-item v-close-popup clickable @click="$emit('delete', tag.id)">
+              <q-item-section class="text-negative">{{ deleteLabel }}</q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -59,7 +57,7 @@ defineEmits<{
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .nav {
   display: flex;
   flex-direction: column;

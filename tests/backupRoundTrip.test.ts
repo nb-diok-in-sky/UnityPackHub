@@ -6,8 +6,12 @@ const files = new Map<string, Uint8Array | string>()
 
 vi.mock('../src/platform/system', () => ({
   createDirectory: async () => {},
-  writeBinaryFileAt: async (path: string, content: Uint8Array) => { files.set(path, content) },
-  writeTextFileAt: async (path: string, content: string) => { files.set(path, content) },
+  writeBinaryFileAt: async (path: string, content: Uint8Array) => {
+    files.set(path, content)
+  },
+  writeTextFileAt: async (path: string, content: string) => {
+    files.set(path, content)
+  },
   readTextFileAt: async (path: string) => {
     const content = files.get(path)
     if (typeof content !== 'string') throw new Error(`missing ${path}`)
@@ -20,7 +24,9 @@ vi.mock('../src/platform/system', () => ({
   },
   appData: {
     read: async (name: string) => (files.get(`appdata/${name}`) as string | undefined) ?? null,
-    write: async (name: string, content: string) => { files.set(`appdata/${name}`, content) },
+    write: async (name: string, content: string) => {
+      files.set(`appdata/${name}`, content)
+    },
   },
 }))
 
@@ -31,9 +37,19 @@ describe('backup round trip', () => {
     const { defaultSettings } = await import('../src/domain/settings')
 
     const asset = {
-      id: 'a1', name: 'Trees', fileName: 'Trees.unitypackage', filePath: 'D:\\Packs\\Trees.unitypackage', fileSize: 1,
-      assetKind: 'package' as const, cover: 'stored' as const, notes: 'my note', tagIds: ['t1'], isFavorite: true,
-      createdAt: 1, updatedAt: 1, lastUsedAt: 0,
+      id: 'a1',
+      name: 'Trees',
+      fileName: 'Trees.unitypackage',
+      filePath: 'D:\\Packs\\Trees.unitypackage',
+      fileSize: 1,
+      assetKind: 'package' as const,
+      cover: 'stored' as const,
+      notes: 'my note',
+      tagIds: ['t1'],
+      isFavorite: true,
+      createdAt: 1,
+      updatedAt: 1,
+      lastUsedAt: 0,
     }
     await db.assets.put(asset)
     await db.tags.put({ id: 't1', label: 'Forest', color: '#000' })
@@ -48,7 +64,12 @@ describe('backup round trip', () => {
     const dataFile = `${summary.folder}\\data.json`
     await backupService.restore(dataFile, await backupService.inspect(dataFile))
 
-    expect(await db.assets.get('a1')).toMatchObject({ notes: 'my note', tagIds: ['t1'], isFavorite: true, cover: 'stored' })
+    expect(await db.assets.get('a1')).toMatchObject({
+      notes: 'my note',
+      tagIds: ['t1'],
+      isFavorite: true,
+      cover: 'stored',
+    })
     expect(await db.tags.count()).toBe(1)
     expect((await db.groups.get('g1'))?.assetIds).toEqual(['a1'])
     const cover = await db.thumbnails.get('a1')

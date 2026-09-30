@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 pub fn discover() -> Vec<String> {
     let mut roots = vec![PathBuf::from(r"C:\Program Files\Unity\Hub\Editor")];
     roots.extend(hub_install_location());
-    let mut editors: Vec<String> = roots.iter()
+    let mut editors: Vec<String> = roots
+        .iter()
         .flat_map(|root| fs::read_dir(root).into_iter().flatten().flatten())
         .map(|version| version.path().join("Editor").join("Unity.exe"))
         .chain(std::iter::once(PathBuf::from(r"C:\Program Files\Unity\Editor\Unity.exe")))

@@ -49,7 +49,15 @@ export function planLibrarySync(
     const moved = missingByIdentity.get(identity(file))?.pop()
     if (moved) {
       movedIds.add(moved.id)
-      addPatch(moved.id, { filePath: file.filePath, name: file.name, fileName: file.fileName, fileSize: file.fileSize, assetKind: file.assetKind, offline: false, updatedAt: now })
+      addPatch(moved.id, {
+        filePath: file.filePath,
+        name: file.name,
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        assetKind: file.assetKind,
+        offline: false,
+        updatedAt: now,
+      })
       continue
     }
     created.push(newAsset(file, createId(), now))
@@ -60,7 +68,8 @@ export function planLibrarySync(
     .filter((asset) => scannedDirectories.some((directory) => isInsideDirectory(asset.filePath, directory)))
     .map((asset) => asset.id)
   for (const asset of unmatched) {
-    if (!asset.offline && unreachableDirectories.some((directory) => isInsideDirectory(asset.filePath, directory))) addPatch(asset.id, { offline: true })
+    if (!asset.offline && unreachableDirectories.some((directory) => isInsideDirectory(asset.filePath, directory)))
+      addPatch(asset.id, { offline: true })
   }
 
   const updated = [...patches].map(([id, patch]) => ({ id, patch }))

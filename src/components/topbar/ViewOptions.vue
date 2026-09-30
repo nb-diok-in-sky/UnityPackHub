@@ -11,7 +11,12 @@ const sizes: Array<{ icon: string; value: CardSize }> = [
   { icon: 'view_comfy', value: 'lg' },
 ]
 const sorts: SortKey[] = ['name', 'createdAt', 'fileSize', 'lastUsedAt']
-const sortLabels = { name: 'sortName', createdAt: 'sortDate', fileSize: 'sortSize', lastUsedAt: 'sortLastUsed' } as const
+const sortLabels = {
+  name: 'sortName',
+  createdAt: 'sortDate',
+  fileSize: 'sortSize',
+  lastUsedAt: 'sortLastUsed',
+} as const
 
 async function setSort(key: SortKey): Promise<void> {
   if (settings.settings.sortBy === key) {
@@ -24,7 +29,17 @@ async function setSort(key: SortKey): Promise<void> {
 
 <template>
   <div class="view-sizes">
-    <q-btn v-for="item in sizes" :key="item.value" flat dense round :icon="item.icon" size="sm" :color="settings.settings.cardSize === item.value ? 'primary' : 'grey-6'" @click="settings.setCardSize(item.value)" />
+    <q-btn
+      v-for="item in sizes"
+      :key="item.value"
+      flat
+      dense
+      round
+      :icon="item.icon"
+      size="sm"
+      :color="settings.settings.cardSize === item.value ? 'primary' : 'grey-6'"
+      @click="settings.setCardSize(item.value)"
+    />
   </div>
   <q-btn flat dense round icon="sort" size="sm" color="grey-7">
     <q-menu>
@@ -32,7 +47,11 @@ async function setSort(key: SortKey): Promise<void> {
         <q-item v-for="key in sorts" :key="key" v-close-popup clickable @click="setSort(key)">
           <q-item-section>{{ t[sortLabels[key]] }}</q-item-section>
           <q-item-section v-if="settings.settings.sortBy === key" side>
-            <q-icon :name="settings.settings.sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'" size="14px" color="primary" />
+            <q-icon
+              :name="settings.settings.sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'"
+              size="14px"
+              color="primary"
+            />
           </q-item-section>
         </q-item>
       </q-list>
@@ -41,5 +60,11 @@ async function setSort(key: SortKey): Promise<void> {
 </template>
 
 <style scoped>
-.view-sizes { display: flex; align-items: center; padding: 2px; border-radius: 8px; background: var(--hover-overlay); }
+.view-sizes {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--hover-overlay);
+}
 </style>

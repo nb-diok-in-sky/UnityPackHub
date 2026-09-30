@@ -47,19 +47,48 @@ async function chooseClassificationJson(): Promise<void> {
   <div class="text-caption text-grey-7 q-mb-sm">{{ t.classificationTableHint }}</div>
   <q-input
     :model-value="settingsStore.settings.classification.jsonPath"
-    dense outlined readonly
+    dense
+    outlined
+    readonly
     :placeholder="t.classificationTablePlaceholder"
     class="q-mb-sm"
   />
   <div class="row q-gutter-sm">
-    <q-btn outline dense :label="t.chooseClassificationTable" icon="table_view" color="primary" :loading="isApplyingClassification" @click="chooseClassificationJson" />
-    <q-btn v-if="settingsStore.settings.classification.jsonPath" flat dense :label="t.clearClassificationTable" color="grey" @click="library.setClassificationTable('')" />
+    <q-btn
+      outline
+      dense
+      :label="t.chooseClassificationTable"
+      icon="table_view"
+      color="primary"
+      :loading="isApplyingClassification"
+      @click="chooseClassificationJson"
+    />
+    <q-btn
+      v-if="settingsStore.settings.classification.jsonPath"
+      flat
+      dense
+      :label="t.clearClassificationTable"
+      color="grey"
+      @click="library.setClassificationTable('')"
+    />
   </div>
 </template>
 
 <style scoped lang="scss">
 @use '../../styles/variables' as *;
 
-.settings-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.settings-path { flex: 1; overflow: hidden; color: $color-secondary; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.settings-path {
+  flex: 1;
+  overflow: hidden;
+  color: $color-secondary;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>

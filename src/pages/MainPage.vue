@@ -15,7 +15,9 @@ import ModelClassificationBar from '../components/ModelClassificationBar.vue'
 const assets = useAssetStore()
 const showSettings = ref(false)
 const selectedAssetId = ref<string | null>(null)
-const selectedAsset = computed<Asset | null>(() => (selectedAssetId.value ? assets.byId.get(selectedAssetId.value) ?? null : null))
+const selectedAsset = computed<Asset | null>(() =>
+  selectedAssetId.value ? (assets.byId.get(selectedAssetId.value) ?? null) : null,
+)
 
 useAppShell(() => {
   if (!selectedAssetId.value) return false

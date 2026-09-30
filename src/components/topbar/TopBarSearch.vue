@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import { onUnmounted, ref, watch } from "vue";
-import { useBrowseStore } from "../../stores/browseStore";
-import { useI18n } from "../../i18n";
-const browse = useBrowseStore();
-const { t } = useI18n();
-let timer: ReturnType<typeof setTimeout> | null = null;
-const input = ref(browse.search);
+import { onUnmounted, ref, watch } from 'vue'
+import { useBrowseStore } from '../../stores/browseStore'
+import { useI18n } from '../../i18n'
+const browse = useBrowseStore()
+const { t } = useI18n()
+let timer: ReturnType<typeof setTimeout> | null = null
+const input = ref(browse.search)
 function update(value: string) {
-  input.value = value;
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(() => (browse.search = value), 200);
+  input.value = value
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(() => (browse.search = value), 200)
 }
-watch(() => browse.search, (value) => { input.value = value; });
+watch(
+  () => browse.search,
+  (value) => {
+    input.value = value
+  },
+)
 onUnmounted(() => {
-  if (timer) clearTimeout(timer);
-});
+  if (timer) clearTimeout(timer)
+})
 </script>
 <template>
   <q-input
@@ -24,19 +29,13 @@ onUnmounted(() => {
     :placeholder="t.search"
     class="search"
     @update:model-value="update($event as string)"
-    ><template #prepend
-      ><q-icon name="search" size="18px" color="grey-6" /></template
+    ><template #prepend><q-icon name="search" size="18px" color="grey-6" /></template
     ><template v-if="input" #append
-      ><q-icon
-        name="close"
-        size="16px"
-        color="grey-5"
-        class="cursor-pointer"
-        @click="update('')" /></template
+      ><q-icon name="close" size="16px" color="grey-5" class="cursor-pointer" @click="update('')" /></template
   ></q-input>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .search {
   :deep(.q-field__control) {
     height: 34px;

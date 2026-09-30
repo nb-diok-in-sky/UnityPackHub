@@ -1,4 +1,11 @@
-import type { Asset, AssetKind, ModelCoverFilter, Tag, UnityAssetProjectState, UnityProjectFilter } from '../types/asset'
+import type {
+  Asset,
+  AssetKind,
+  ModelCoverFilter,
+  Tag,
+  UnityAssetProjectState,
+  UnityProjectFilter,
+} from '../types/asset'
 import type { SortKey, SortOrder } from '../types/settings'
 import { modelCoverStatus } from './modelCover'
 
@@ -39,7 +46,9 @@ export function queryAssets(assets: readonly Asset[], query: AssetQuery, textOf:
   const compare = comparators[query.sortBy]
   return assets
     .filter((asset) => asset.assetKind === query.kind)
-    .filter((asset) => query.kind !== 'model' || query.modelCover === 'all' || modelCoverStatus(asset) === query.modelCover)
+    .filter(
+      (asset) => query.kind !== 'model' || query.modelCover === 'all' || modelCoverStatus(asset) === query.modelCover,
+    )
     .filter((asset) => matchesProject(asset, query.project))
     .filter((asset) => !query.favoritesOnly || asset.isFavorite)
     .filter((asset) => !query.tagId || asset.tagIds.includes(query.tagId))

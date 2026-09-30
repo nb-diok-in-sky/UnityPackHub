@@ -52,6 +52,8 @@ export const useUnityProjectStore = defineStore('unityProject', () => {
     findDuplicates,
     stateOf: (assetId: string): UnityAssetProjectState | null => states.value[assetId] ?? null,
     duplicatesOf: (assetId: string): string[] => duplicates.value[assetId] ?? [],
-    setFilter: (value: UnityProjectFilter) => { filter.value = value },
+    setFilter: (value: UnityProjectFilter) => {
+      filter.value = value
+    },
   }
 })

@@ -110,7 +110,9 @@ export const useAssetStore = defineStore('assets', () => {
     await useCoverStore().save(asset.id, image)
     await patch(asset.id, {
       cover: 'stored',
-      ...(asset.modelPreview ? { modelPreview: { ...asset.modelPreview, version: MODEL_PREVIEW_VERSION, error: '' } } : {}),
+      ...(asset.modelPreview
+        ? { modelPreview: { ...asset.modelPreview, version: MODEL_PREVIEW_VERSION, error: '' } }
+        : {}),
     })
   }
 

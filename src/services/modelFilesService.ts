@@ -31,7 +31,9 @@ export const modelFilesService = {
 
     const hashes: FileHashResult[] = []
     for (let offset = 0; offset < candidates.length; offset += HASH_BATCH_SIZE) {
-      hashes.push(...await backend.hashFiles(candidates.slice(offset, offset + HASH_BATCH_SIZE).map((model) => model.filePath)))
+      hashes.push(
+        ...(await backend.hashFiles(candidates.slice(offset, offset + HASH_BATCH_SIZE).map((model) => model.filePath))),
+      )
     }
     const byPath = new Map(candidates.map((model) => [model.filePath, model]))
     const byHash = new Map<string, Asset[]>()
@@ -42,7 +44,8 @@ export const modelFilesService = {
     const duplicates: Record<string, string[]> = {}
     for (const group of byHash.values()) {
       if (group.length < 2) continue
-      for (const model of group) duplicates[model.id] = group.filter((other) => other.id !== model.id).map((other) => other.id)
+      for (const model of group)
+        duplicates[model.id] = group.filter((other) => other.id !== model.id).map((other) => other.id)
     }
     return duplicates
   },

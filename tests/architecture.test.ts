@@ -6,12 +6,14 @@ import { describe, expect, it } from 'vitest'
 
 const SRC = resolve(__dirname, '../src')
 
-type Layer = 'platform' | 'data' | 'domain' | 'types' | 'services' | 'stores' | 'composables' | 'ui' | 'i18n' | 'view' | 'other'
+type Layer =
+  'platform' | 'data' | 'domain' | 'types' | 'services' | 'stores' | 'composables' | 'ui' | 'i18n' | 'view' | 'other'
 
 function layerOf(file: string): Layer {
   const top = relative(SRC, file).split(/[\\/]/)[0] ?? ''
   if (['components', 'pages', 'layouts'].includes(top)) return 'view'
-  if (['platform', 'data', 'domain', 'types', 'services', 'stores', 'composables', 'ui', 'i18n'].includes(top)) return top as Layer
+  if (['platform', 'data', 'domain', 'types', 'services', 'stores', 'composables', 'ui', 'i18n'].includes(top))
+    return top as Layer
   return 'other'
 }
 
@@ -71,7 +73,8 @@ describe('architecture', () => {
       }
       const owner = PACKAGE_OWNERS.find(([pattern]) => pattern.test(specifier))?.[1]
       if (owner && owner !== layer) violations.push(`${name} (${layer}) imports ${specifier}, reserved for ${owner}`)
-      if (NO_VUE.includes(layer) && /^(vue|pinia)$/.test(specifier)) violations.push(`${name} (${layer}) must not depend on ${specifier}`)
+      if (NO_VUE.includes(layer) && /^(vue|pinia)$/.test(specifier))
+        violations.push(`${name} (${layer}) must not depend on ${specifier}`)
     }
   }
 

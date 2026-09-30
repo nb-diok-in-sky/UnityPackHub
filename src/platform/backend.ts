@@ -1,5 +1,5 @@
 // Typed wrappers for every Rust command (src-tauri/src/lib.rs). The only file that calls `invoke`.
-import { invoke } from '@tauri-apps/api/core'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
 export interface ScannedFile {
@@ -52,8 +52,8 @@ export interface PackageAssetEntry {
   filename: string
   extension: string
   assetType: string
-  /** Preview image embedded in the package, as a data URL. */
-  preview: string | null
+  /** Preview image embedded in the package, extracted to the app cache (see `appFileUrl`). */
+  previewPath: string | null
   hasAssetData: boolean
 }
 
@@ -66,8 +66,8 @@ export interface PreviewFolder {
   path: string
   /** Package pathname -> preview PNG name. */
   outputFiles: Record<string, string>
-  /** Preview PNG name -> data URL, for previews that already exist. */
-  images: Record<string, string>
+  /** Names of the preview PNGs that already exist in `path`. */
+  files: string[]
 }
 
 export interface RenderedPreview {
@@ -79,8 +79,9 @@ export interface RenderedPreview {
 }
 
 export interface RenderedPreviews {
+  /** Folder holding the PNGs named in `entries[].preview`. */
+  path: string
   entries: RenderedPreview[]
-  images: Record<string, string>
 }
 
 export interface ProjectAsset {
@@ -102,12 +103,33 @@ export interface EditorActionResult {
 
 export type BridgeStatus = 'ready' | 'outdated' | 'offline'
 
-export interface ModelPreviewRequest { assetId: string; sourcePath: string }
-export interface ModelPreviewResult { assetId: string; imagePath: string; success: boolean; error: string }
+export interface ModelPreviewRequest {
+  assetId: string
+  sourcePath: string
+}
+export interface ModelPreviewResult {
+  assetId: string
+  imagePath: string
+  success: boolean
+  error: string
+}
 
 /** Progress events sent by `scan_directories` while it walks the folders. */
 export function onScanProgress(handler: (progress: ScanProgress) => void): Promise<() => void> {
   return listen<ScanProgress>('library://scan-progress', (event) => handler(event.payload))
+}
+
+// Changes Unity writes to disk, pushed by the backend's file watcher (src-tauri/src/events.rs).
+export const onPackagePreviewsChanged = (handler: (packageKey: string) => void) =>
+  listen<{ packageKey: string }>('unity://package-previews-changed', (event) => handler(event.payload.packageKey))
+export const onModelPreviewResults = (handler: () => void) => listen('unity://model-preview-results', handler)
+export const onModelPreviewFinished = (handler: () => void) => listen('unity://model-preview-finished', handler)
+export const onEditorActionResult = (handler: (id: string) => void) =>
+  listen<{ id: string }>('unity://editor-action-result', (event) => handler(event.payload.id))
+
+/** URL an `<img>` can load a file from the app data folder with (served by the `uph` scheme). */
+export function appFileUrl(path: string): string {
+  return convertFileSrc(path, 'uph')
 }
 
 export const backend = {
@@ -141,8 +163,7 @@ export const backend = {
   // package previews rendered by the bridge
   requestPackagePreviews: (packageKey: string, prefabs: Array<{ pathname: string; filename: string }>) =>
     invoke<PreviewFolder>('request_package_previews', { packageKey, prefabs }),
-  readPackagePreviewImages: (packageKey: string) =>
-    invoke<Record<string, string>>('read_package_preview_images', { packageKey }),
+  listPackagePreviewFiles: (packageKey: string) => invoke<string[]>('list_package_preview_files', { packageKey }),
   getRenderedPreviews: (packageKey: string) => invoke<RenderedPreviews | null>('get_rendered_previews', { packageKey }),
   clearAllPreviews: () => invoke<number>('clear_all_previews'),
 
@@ -152,5 +173,4 @@ export const backend = {
   isModelPreviewJobRunning: () => invoke<boolean>('is_model_preview_job_running'),
   cancelModelPreviewJob: () => invoke<boolean>('cancel_model_preview_job'),
   collectModelPreviewResults: () => invoke<ModelPreviewResult[]>('collect_model_preview_results'),
-  readImageFile: (path: string) => invoke<string>('read_image_file', { path }),
 }

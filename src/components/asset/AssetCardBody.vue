@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Asset, Tag } from "../../types/asset";
-import { formatBytes } from "../../utils/formatBytes";
-import TagPill from "../TagPill.vue";
-const props = defineProps<{ asset: Asset; tags: Tag[] }>();
-const size = computed(() => formatBytes(props.asset.fileSize));
+import { computed } from 'vue'
+import type { Asset, Tag } from '../../types/asset'
+import { formatBytes } from '../../utils/formatBytes'
+import TagPill from '../TagPill.vue'
+const props = defineProps<{ asset: Asset; tags: Tag[] }>()
+const size = computed(() => formatBytes(props.asset.fileSize))
 </script>
 <template>
   <div class="body">
@@ -14,12 +14,9 @@ const size = computed(() => formatBytes(props.asset.fileSize));
     </p>
     <div class="footer">
       <div class="tags">
-        <TagPill
-          v-for="tag in tags.slice(0, 3)"
-          :key="tag.id"
-          :tag="tag"
-          small
-        /><span v-if="tags.length > 3" class="more"
+        <TagPill v-for="tag in tags.slice(0, 3)" :key="tag.id" :tag="tag" small /><span
+          v-if="tags.length > 3"
+          class="more"
           >+{{ tags.length - 3 }}</span
         >
       </div>
@@ -28,7 +25,7 @@ const size = computed(() => formatBytes(props.asset.fileSize));
   </div>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .body {
   display: flex;
   flex: 1;

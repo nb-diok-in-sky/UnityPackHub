@@ -32,13 +32,23 @@ const { t } = useI18n()
         <div class="url-row">
           <q-input
             :model-value="productUrl"
-            outlined dense clearable class="url-input"
+            outlined
+            dense
+            clearable
+            class="url-input"
             :label="t.officialCoverUrl"
             placeholder="https://assetstore.unity.com/packages/..."
             @update:model-value="$emit('update:productUrl', String($event ?? ''))"
             @keyup.enter="$emit('resolve')"
           />
-          <q-btn unelevated no-caps :label="t.officialCoverResolve" color="primary" :loading="loading" @click="$emit('resolve')" />
+          <q-btn
+            unelevated
+            no-caps
+            :label="t.officialCoverResolve"
+            color="primary"
+            :loading="loading"
+            @click="$emit('resolve')"
+          />
         </div>
 
         <div v-if="error" class="error-message">
@@ -58,8 +68,12 @@ const { t } = useI18n()
       <q-card-actions align="right">
         <q-btn flat :label="t.cancel" color="grey" @click="$emit('update:modelValue', false)" />
         <q-btn
-          unelevated :label="t.officialCoverApply" color="primary"
-          :disable="!product || loading" :loading="loading" @click="$emit('apply')"
+          unelevated
+          :label="t.officialCoverApply"
+          color="primary"
+          :disable="!product || loading"
+          :loading="loading"
+          @click="$emit('apply')"
         />
       </q-card-actions>
     </q-card>
@@ -68,20 +82,76 @@ const { t } = useI18n()
 
 <style scoped lang="scss">
 @use '../../styles/variables' as *;
-.official-cover-dialog { width: min(620px, 92vw); border-radius: $radius-dialog; }
-.hint { margin-top: 6px; color: $color-secondary; font-size: 12px; }
-.content { display: flex; flex-direction: column; gap: 14px; }
-.url-row { display: flex; align-items: center; gap: 8px; }
-.url-input { flex: 1; }
-.error-message { display: flex; align-items: center; gap: 6px; color: $apple-red; font-size: 12px; }
-.candidate { display: grid; grid-template-columns: 180px 1fr; gap: 14px; padding: 10px; border: 1px solid $color-border; border-radius: $radius-card; }
-.candidate img { width: 180px; height: 120px; object-fit: cover; border-radius: 8px; background: $color-divider; }
-.candidate__info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.candidate__info strong { color: $color-text; word-break: break-word; }
-.candidate__info span { color: $color-secondary; font-size: 12px; }
+.official-cover-dialog {
+  width: min(620px, 92vw);
+  border-radius: $radius-dialog;
+}
+.hint {
+  margin-top: 6px;
+  color: $color-secondary;
+  font-size: 12px;
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.url-input {
+  flex: 1;
+}
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: $apple-red;
+  font-size: 12px;
+}
+.candidate {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 14px;
+  padding: 10px;
+  border: 1px solid $color-border;
+  border-radius: $radius-card;
+}
+.candidate img {
+  width: 180px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: $color-divider;
+}
+.candidate__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.candidate__info strong {
+  color: $color-text;
+  word-break: break-word;
+}
+.candidate__info span {
+  color: $color-secondary;
+  font-size: 12px;
+}
 @media (max-width: 520px) {
-  .url-row { align-items: stretch; flex-direction: column; }
-  .candidate { grid-template-columns: 1fr; }
-  .candidate img { width: 100%; height: auto; aspect-ratio: 3 / 2; }
+  .url-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .candidate {
+    grid-template-columns: 1fr;
+  }
+  .candidate img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
 }
 </style>

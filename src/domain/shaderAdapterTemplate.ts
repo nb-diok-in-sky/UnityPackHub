@@ -22,4 +22,3 @@ export const SHADER_ADAPTER_TEMPLATE = {
     'Do not invent property names that are absent from the material or shader.',
   ].join(' '),
 }
-

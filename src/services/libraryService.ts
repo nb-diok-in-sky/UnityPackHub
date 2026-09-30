@@ -9,18 +9,23 @@ import { assetRepository, assetStoreLinkRepository, coverRepository, groupReposi
 import { classificationService } from './classificationService'
 
 /** Problems that did not stop the scan. */
-export type ScanWarning =
-  | { kind: 'unreachable'; directories: string[] }
-  | { kind: 'classification'; message: string }
+export type ScanWarning = { kind: 'unreachable'; directories: string[] } | { kind: 'classification'; message: string }
 
 export interface ScanOutcome {
   warnings: ScanWarning[]
 }
 
-export interface GroupMembership { groupId: string; assetId: string }
+export interface GroupMembership {
+  groupId: string
+  assetId: string
+}
 
 export const libraryService = {
-  async scan(directories: ScanDirectory[], classificationJsonPath: string, onProgress?: (progress: ScanProgress) => void): Promise<ScanOutcome> {
+  async scan(
+    directories: ScanDirectory[],
+    classificationJsonPath: string,
+    onProgress?: (progress: ScanProgress) => void,
+  ): Promise<ScanOutcome> {
     const enabled = directories.filter((directory) => directory.enabled).map((directory) => directory.path)
     const stopListening = onProgress ? await onScanProgress(onProgress) : undefined
     const result = await backend.scanDirectories(enabled).finally(() => stopListening?.())
@@ -28,7 +33,14 @@ export const libraryService = {
     const unreachable = enabled.filter((directory) => !result.scannedDirectories.includes(directory))
     if (unreachable.length > 0) warnings.push({ kind: 'unreachable', directories: unreachable })
 
-    const plan = planLibrarySync(await assetRepository.getAll(), result.files, result.scannedDirectories, uuid, Date.now(), unreachable)
+    const plan = planLibrarySync(
+      await assetRepository.getAll(),
+      result.files,
+      result.scannedDirectories,
+      uuid,
+      Date.now(),
+      unreachable,
+    )
     if (plan.created.length > 0) await assetRepository.put(plan.created)
     if (plan.updated.length > 0) await assetRepository.updateMany(plan.updated)
     await this.removePermanently(plan.removedIds)
@@ -48,10 +60,15 @@ export const libraryService = {
   /** Drops the assets of a scan folder the user removed from the settings. */
   async removeDirectory(directory: string, remainingDirectories: string[]): Promise<void> {
     const assets = await assetRepository.getAll()
-    await this.removePermanently(assets
-      .filter((asset) => isInsideDirectory(asset.filePath, directory)
-        && !remainingDirectories.some((remaining) => isInsideDirectory(asset.filePath, remaining)))
-      .map((asset) => asset.id))
+    await this.removePermanently(
+      assets
+        .filter(
+          (asset) =>
+            isInsideDirectory(asset.filePath, directory) &&
+            !remainingDirectories.some((remaining) => isInsideDirectory(asset.filePath, remaining)),
+        )
+        .map((asset) => asset.id),
+    )
   },
 
   /** Removes assets and everything attached to them. Not undoable. */
@@ -68,7 +85,8 @@ export const libraryService = {
     const assets = await assetRepository.getMany(ids)
     const removed = new Set(ids)
     const memberships = (await groupRepository.getAll()).flatMap((group) =>
-      group.assetIds.filter((id) => removed.has(id)).map((assetId) => ({ groupId: group.id, assetId })))
+      group.assetIds.filter((id) => removed.has(id)).map((assetId) => ({ groupId: group.id, assetId })),
+    )
     await assetRepository.delete(ids)
     await groupRepository.removeMembers(removed)
     return { assets, memberships }
@@ -77,9 +95,15 @@ export const libraryService = {
   async restore(assets: Asset[], memberships: GroupMembership[]): Promise<void> {
     await assetRepository.put(assets)
     const groups = await groupRepository.getAll()
-    await Promise.all(groups.map((group) => {
-      const restored = memberships.filter((membership) => membership.groupId === group.id).map((membership) => membership.assetId)
-      return restored.length > 0 ? groupRepository.update(group.id, { assetIds: [...new Set([...group.assetIds, ...restored])] }) : undefined
-    }))
+    await Promise.all(
+      groups.map((group) => {
+        const restored = memberships
+          .filter((membership) => membership.groupId === group.id)
+          .map((membership) => membership.assetId)
+        return restored.length > 0
+          ? groupRepository.update(group.id, { assetIds: [...new Set([...group.assetIds, ...restored])] })
+          : undefined
+      }),
+    )
   },
 }

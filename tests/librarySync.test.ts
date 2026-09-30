@@ -6,8 +6,20 @@ import { planLibrarySync } from '../src/domain/librarySync'
 function asset(id: string, filePath: string, extra: Partial<Asset> = {}): Asset {
   const fileName = filePath.split('\\').pop() ?? filePath
   return {
-    id, name: fileName, fileName, filePath, fileSize: 100, assetKind: 'package', cover: 'none',
-    notes: '', tagIds: [], isFavorite: false, createdAt: 0, updatedAt: 0, lastUsedAt: 0, ...extra,
+    id,
+    name: fileName,
+    fileName,
+    filePath,
+    fileSize: 100,
+    assetKind: 'package',
+    cover: 'none',
+    notes: '',
+    tagIds: [],
+    isFavorite: false,
+    createdAt: 0,
+    updatedAt: 0,
+    lastUsedAt: 0,
+    ...extra,
   }
 }
 
@@ -53,11 +65,18 @@ describe('planLibrarySync', () => {
     const plan = planLibrarySync(existing, [scanned('D:\\New\\Trees.unitypackage')], ['D:\\Old', 'D:\\New'], newId)
     expect(plan.created).toEqual([])
     expect(plan.removedIds).toEqual([])
-    expect(plan.updated).toEqual([expect.objectContaining({ id: 'a', patch: expect.objectContaining({ filePath: 'D:\\New\\Trees.unitypackage' }) })])
+    expect(plan.updated).toEqual([
+      expect.objectContaining({ id: 'a', patch: expect.objectContaining({ filePath: 'D:\\New\\Trees.unitypackage' }) }),
+    ])
   })
 
   it('creates new files with render eligibility for models', () => {
-    const plan = planLibrarySync([], [scanned('D:\\M\\Tree.fbx', 10, 'model'), scanned('D:\\M\\Animations\\Walk.fbx', 10, 'model')], ['D:\\M'], newId)
+    const plan = planLibrarySync(
+      [],
+      [scanned('D:\\M\\Tree.fbx', 10, 'model'), scanned('D:\\M\\Animations\\Walk.fbx', 10, 'model')],
+      ['D:\\M'],
+      newId,
+    )
     expect(plan.created.map((created) => created.modelPreview?.eligible)).toEqual([true, false])
     expect(plan.created[0]).toMatchObject({ cover: 'none', tagIds: [], assetKind: 'model' })
   })

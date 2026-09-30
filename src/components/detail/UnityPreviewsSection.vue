@@ -1,47 +1,35 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { Asset } from "../../types/asset";
-import { useI18n } from "../../i18n";
-import { useUnityPackagePreviews } from "../../composables/useUnityPackagePreviews";
-import SectionState from "../shared/SectionState.vue";
-import ImageLightbox from "../shared/ImageLightbox.vue";
-import UnityPreviewCard from "./UnityPreviewCard.vue";
-const props = defineProps<{ asset: Asset }>();
-const { t } = useI18n();
-const previews = useUnityPackagePreviews(() => props.asset);
-const selectedImage = computed(() =>
-  previews.selected.value
-    ? (previews.previews.value?.images[previews.selected.value.preview] ?? "")
-    : "",
-);
+import { computed } from 'vue'
+import type { Asset } from '../../types/asset'
+import { useI18n } from '../../i18n'
+import { useUnityPackagePreviews } from '../../composables/useUnityPackagePreviews'
+import SectionState from '../shared/SectionState.vue'
+import ImageLightbox from '../shared/ImageLightbox.vue'
+import UnityPreviewCard from './UnityPreviewCard.vue'
+const props = defineProps<{ asset: Asset }>()
+const { t } = useI18n()
+const previews = useUnityPackagePreviews(() => props.asset)
+const selectedImage = computed(() => (previews.selected.value ? previews.imageUrl(previews.selected.value) : ''))
 const lightboxOpen = computed({
   get: () => !!previews.selected.value,
   set: (value) => {
-    if (!value) previews.selected.value = null;
+    if (!value) previews.selected.value = null
   },
-});
-defineExpose({ reset: previews.reset, loadPreviews: previews.load });
+})
+defineExpose({ reset: previews.reset, loadPreviews: previews.load })
 </script>
 <template>
-  <section
-    v-if="previews.loading.value || previews.previews.value?.entries.length"
-    class="section"
-  >
+  <section v-if="previews.loading.value || previews.previews.value?.entries.length" class="section">
     <header>
-      {{ t.unityPreviews
-      }}<span v-if="previews.previews.value">{{
-        previews.previews.value.entries.length
-      }}</span>
+      {{ t.unityPreviews }}<span v-if="previews.previews.value">{{ previews.previews.value.entries.length }}</span>
     </header>
-    <SectionState
-      :loading="previews.loading.value"
-      :loading-text="t.loadingPreviews"
+    <SectionState :loading="previews.loading.value" :loading-text="t.loadingPreviews"
       ><div class="grid">
         <UnityPreviewCard
           v-for="entry in previews.previews.value?.entries ?? []"
           :key="entry.preview"
           :entry="entry"
-          :src="previews.previews.value?.images[entry.preview]"
+          :src="previews.imageUrl(entry)"
           @open="previews.selected.value = entry"
           @cover="previews.useAsCover(entry)"
         /></div></SectionState
@@ -64,7 +52,7 @@ defineExpose({ reset: previews.reset, loadPreviews: previews.load });
   </section>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .section {
   display: flex;
   flex-direction: column;

@@ -1,54 +1,30 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type {
-  EditableGroup,
-  EditableTag,
-} from "../../composables/useSidebarManagement";
+import { computed } from 'vue'
+import type { EditableGroup, EditableTag } from '../../composables/useSidebarManagement'
 
 const props = defineProps<{
-  modelValue: EditableGroup | EditableTag | null;
-  kind: "group" | "tag";
-  title: string;
-  fieldLabel: string;
-  cancelLabel: string;
-  saveLabel: string;
-}>();
+  modelValue: EditableGroup | EditableTag | null
+  kind: 'group' | 'tag'
+  title: string
+  fieldLabel: string
+  cancelLabel: string
+  saveLabel: string
+}>()
 const emit = defineEmits<{
-  "update:modelValue": [value: EditableGroup | EditableTag | null];
-  save: [value: EditableGroup | EditableTag];
-}>();
+  'update:modelValue': [value: EditableGroup | EditableTag | null]
+  save: [value: EditableGroup | EditableTag]
+}>()
 
 const draft = computed({
   get: () => props.modelValue,
-  set: (value) => emit("update:modelValue", value),
-});
-const icons = [
-  "folder",
-  "inventory_2",
-  "category",
-  "widgets",
-  "view_in_ar",
-  "terrain",
-  "brush",
-  "auto_fix_high",
-];
-const colors = [
-  "#007AFF",
-  "#34C759",
-  "#FF9500",
-  "#FF3B30",
-  "#AF52DE",
-  "#FF2D55",
-  "#5AC8FA",
-  "#FFCC00",
-];
+  set: (value) => emit('update:modelValue', value),
+})
+const icons = ['folder', 'inventory_2', 'category', 'widgets', 'view_in_ar', 'terrain', 'brush', 'auto_fix_high']
+const colors = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FF2D55', '#5AC8FA', '#FFCC00']
 </script>
 
 <template>
-  <q-dialog
-    :model-value="draft !== null"
-    @update:model-value="(open) => !open && (draft = null)"
-  >
+  <q-dialog :model-value="draft !== null" @update:model-value="(open) => !open && (draft = null)">
     <q-card v-if="draft" class="entity-dialog">
       <q-card-section
         ><div class="text-h6">{{ title }}</div></q-card-section
@@ -72,10 +48,7 @@ const colors = [
           autofocus
           @keyup.enter="$emit('save', draft)"
         />
-        <div
-          v-if="kind === 'group' && 'icon' in draft"
-          class="option-grid q-mt-md"
-        >
+        <div v-if="kind === 'group' && 'icon' in draft" class="option-grid q-mt-md">
           <button
             v-for="icon in icons"
             :key="icon"
@@ -99,19 +72,14 @@ const colors = [
       </q-card-section>
       <q-card-actions align="right">
         <q-btn flat :label="cancelLabel" color="grey" @click="draft = null" />
-        <q-btn
-          flat
-          :label="saveLabel"
-          color="primary"
-          @click="$emit('save', draft)"
-        />
+        <q-btn flat :label="saveLabel" color="primary" @click="$emit('save', draft)" />
       </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .entity-dialog {
   border-radius: $radius-dialog;
   min-width: 320px;

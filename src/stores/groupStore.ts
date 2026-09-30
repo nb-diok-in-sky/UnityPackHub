@@ -23,7 +23,16 @@ export const useGroupStore = defineStore('groups', () => {
 
   async function create(name: string, icon: string, assetKind?: AssetKind): Promise<AssetGroup> {
     const order = groups.value.reduce((max, group) => Math.max(max, group.order), 0) + 1
-    const group: AssetGroup = { id: uuid(), name, icon, assetIds: [], order, createdAt: Date.now(), source: 'manual', ...(assetKind ? { assetKind } : {}) }
+    const group: AssetGroup = {
+      id: uuid(),
+      name,
+      icon,
+      assetIds: [],
+      order,
+      createdAt: Date.now(),
+      source: 'manual',
+      ...(assetKind ? { assetKind } : {}),
+    }
     await save(group)
     return group
   }

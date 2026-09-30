@@ -5,8 +5,16 @@ import { useBrowseStore } from '../stores/browseStore'
 import { useGroupStore } from '../stores/groupStore'
 import { useTagStore } from '../stores/tagStore'
 
-export interface EditableTag { id?: string; label: string; color: string }
-export interface EditableGroup { id?: string; name: string; icon: string }
+export interface EditableTag {
+  id?: string
+  label: string
+  color: string
+}
+export interface EditableGroup {
+  id?: string
+  name: string
+  icon: string
+}
 
 /** Sidebar navigation plus the create/edit dialogs for tags and groups. */
 export function useSidebarManagement() {
@@ -17,8 +25,9 @@ export function useSidebarManagement() {
   const tagDraft = ref<EditableTag | null>(null)
   const groupDraft = ref<EditableGroup | null>(null)
 
-  const visibleGroups = computed(() => groups.manualGroups.filter((group) =>
-    group.assetKind === undefined || group.assetKind === browse.kind))
+  const visibleGroups = computed(() =>
+    groups.manualGroups.filter((group) => group.assetKind === undefined || group.assetKind === browse.kind),
+  )
 
   async function saveTag(draft: EditableTag): Promise<void> {
     const label = draft.label.trim()
@@ -56,12 +65,20 @@ export function useSidebarManagement() {
     visibleGroups,
     tagDraft,
     groupDraft,
-    createTag: () => { tagDraft.value = { label: '', color: '#007AFF' } },
-    editTag: (tag: Tag) => { tagDraft.value = { id: tag.id, label: tag.label, color: tag.color } },
+    createTag: () => {
+      tagDraft.value = { label: '', color: '#007AFF' }
+    },
+    editTag: (tag: Tag) => {
+      tagDraft.value = { id: tag.id, label: tag.label, color: tag.color }
+    },
     saveTag,
     deleteTag,
-    createGroup: () => { groupDraft.value = { name: '', icon: 'folder' } },
-    editGroup: (group: AssetGroup) => { groupDraft.value = { id: group.id, name: group.name, icon: group.icon } },
+    createGroup: () => {
+      groupDraft.value = { name: '', icon: 'folder' }
+    },
+    editGroup: (group: AssetGroup) => {
+      groupDraft.value = { id: group.id, name: group.name, icon: group.icon }
+    },
     saveGroup,
     deleteGroup,
   }

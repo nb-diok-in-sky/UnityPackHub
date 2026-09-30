@@ -17,10 +17,19 @@ export function useBatchAssetActions() {
     selectedCount: computed(() => browse.selectedIds.size),
     canUndo: computed(() => assets.canUndo),
     deleteDialogOpen,
-    addTag: async (tagId: string) => { await assets.edit(selected(), addTag(tagId)); browse.clearSelection() },
+    addTag: async (tagId: string) => {
+      await assets.edit(selected(), addTag(tagId))
+      browse.clearSelection()
+    },
     removeTag: (tagId: string) => assets.edit(selected(), removeTag(tagId)),
-    favorite: async () => { await assets.edit(selected(), setFavorite(true)); browse.clearSelection() },
-    unfavorite: async () => { await assets.edit(selected(), setFavorite(false)); browse.clearSelection() },
+    favorite: async () => {
+      await assets.edit(selected(), setFavorite(true))
+      browse.clearSelection()
+    },
+    unfavorite: async () => {
+      await assets.edit(selected(), setFavorite(false))
+      browse.clearSelection()
+    },
     deleteSelected: async () => {
       deleteDialogOpen.value = false
       await actions.removeFromLibrary(selected())

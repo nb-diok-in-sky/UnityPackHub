@@ -7,7 +7,11 @@ export const BACKUP_VERSION = 1
 export const BACKUP_DATA_FILE = 'data.json'
 export const BACKUP_COVERS_DIR = 'covers'
 
-export interface BackupCover { id: string; file: string; type: string }
+export interface BackupCover {
+  id: string
+  file: string
+  type: string
+}
 
 export interface BackupData {
   format: typeof BACKUP_FORMAT
@@ -18,13 +22,26 @@ export interface BackupData {
   tags: Tag[]
   groups: AssetGroup[]
   unityAssetLinks: UnityAssetLink[]
-  assetStoreLinks: Array<{ assetId: string; packageId: string; productName: string; productUrl: string; imageUrl: string; linkedAt: number }>
+  assetStoreLinks: Array<{
+    assetId: string
+    packageId: string
+    productName: string
+    productUrl: string
+    imageUrl: string
+    linkedAt: number
+  }>
   covers: BackupCover[]
 }
 
 const EXTENSIONS: Record<string, string> = {
-  'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
-  'image/bmp': 'bmp', 'image/svg+xml': 'svg', 'image/x-icon': 'ico', 'image/tiff': 'tiff',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/bmp': 'bmp',
+  'image/svg+xml': 'svg',
+  'image/x-icon': 'ico',
+  'image/tiff': 'tiff',
 }
 
 /** Cover file name inside the backup; ids are UUIDs, so they are safe file names. */
@@ -45,7 +62,8 @@ export function parseBackup(raw: unknown): BackupData {
   if (!raw || typeof raw !== 'object') throw new InvalidBackupError('not an object')
   const data = raw as Partial<BackupData>
   if (data.format !== BACKUP_FORMAT) throw new InvalidBackupError('not a UnityPackHub backup')
-  if (typeof data.version !== 'number' || data.version > BACKUP_VERSION) throw new InvalidBackupError(`unsupported backup version ${String(data.version)}`)
+  if (typeof data.version !== 'number' || data.version > BACKUP_VERSION)
+    throw new InvalidBackupError(`unsupported backup version ${String(data.version)}`)
   for (const key of ['assets', 'tags', 'groups', 'unityAssetLinks', 'assetStoreLinks', 'covers'] as const) {
     if (!Array.isArray(data[key])) throw new InvalidBackupError(`missing ${key}`)
   }

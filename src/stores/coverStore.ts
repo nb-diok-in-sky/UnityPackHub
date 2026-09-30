@@ -28,8 +28,11 @@ export const useCoverStore = defineStore('covers', () => {
     if (urls.has(assetId)) return Promise.resolve()
     const running = pending.get(assetId)
     if (running) return running
-    const request = coverService.load(assetId)
-      .then((blob) => { if (blob) remember(assetId, URL.createObjectURL(blob)) })
+    const request = coverService
+      .load(assetId)
+      .then((blob) => {
+        if (blob) remember(assetId, URL.createObjectURL(blob))
+      })
       .finally(() => pending.delete(assetId))
     pending.set(assetId, request)
     return request

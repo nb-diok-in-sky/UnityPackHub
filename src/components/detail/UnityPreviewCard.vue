@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { RenderedPreview } from "../../platform/backend";
-defineProps<{ entry: RenderedPreview; src: string | undefined }>();
-defineEmits<{ open: []; cover: [] }>();
+import type { RenderedPreview } from '../../platform/backend'
+defineProps<{ entry: RenderedPreview; src: string | undefined }>()
+defineEmits<{ open: []; cover: [] }>()
 </script>
 <template>
   <article
@@ -11,31 +11,20 @@ defineEmits<{ open: []; cover: [] }>();
     @click="$emit('open')"
   >
     <div class="card__image">
-      <img v-if="src" :src="src" :alt="entry.name" /><q-icon
-        v-else
-        name="view_in_ar"
-        size="40px"
-        color="grey-5"
-      /><span v-if="entry.renderType === 'rendered'">3D</span>
+      <img v-if="src" :src="src" :alt="entry.name" /><q-icon v-else name="view_in_ar" size="40px" color="grey-5" /><span
+        v-if="entry.renderType === 'rendered'"
+        >3D</span
+      >
     </div>
     <div class="card__info">
       <strong>{{ entry.name }}</strong
       ><small>{{ entry.type }}</small>
     </div>
-    <q-btn
-      flat
-      dense
-      round
-      icon="photo"
-      size="xs"
-      color="primary"
-      class="card__cover"
-      @click.stop="$emit('cover')"
-    />
+    <q-btn flat dense round icon="photo" size="xs" color="primary" class="card__cover" @click.stop="$emit('cover')" />
   </article>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .card {
   position: relative;
   overflow: hidden;

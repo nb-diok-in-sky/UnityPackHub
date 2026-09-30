@@ -1,0 +1,7 @@
+dist
+release
+src-tauri
+.quasar
+node_modules
+package-lock.json
+*.md

@@ -1,5 +1,4 @@
 use super::archive;
-use crate::files::png_data_url;
 use serde::Serialize;
 use std::path::Path;
 
@@ -11,8 +10,8 @@ pub struct PackageAssetEntry {
     pub filename: String,
     pub extension: String,
     pub asset_type: String,
-    /// Preview image embedded in the package by the exporter, as a data URL.
-    pub preview: Option<String>,
+    /// Preview image embedded in the package by the exporter, extracted to the app's cache.
+    pub preview_path: Option<String>,
     pub has_asset_data: bool,
 }
 
@@ -23,22 +22,43 @@ pub struct PackageAssetList {
     pub total_count: usize,
 }
 
+/// Lists the package and writes its embedded previews to disk, so the UI loads them as files
+/// on demand instead of receiving every image inline.
 pub fn list_assets(path: &str) -> Result<PackageAssetList, String> {
     let content = archive::read_package(path, true)?;
-    let mut entries: Vec<PackageAssetEntry> = content.pathnames.iter().filter_map(|(guid, pathname)| {
-        if pathname.ends_with('/') { return None; }
-        let asset_type = classify_pathname(pathname)?;
-        let filename = file_name(pathname).to_string();
-        Some(PackageAssetEntry {
-            guid: guid.clone(),
-            pathname: pathname.clone(),
-            extension: crate::files::extension_lowercase(Path::new(&filename)),
-            filename,
-            asset_type: asset_type.to_string(),
-            preview: content.previews.get(guid).map(|data| png_data_url(data)),
-            has_asset_data: content.assets.contains(guid),
+    let preview_dir = crate::paths::package_embedded_previews_dir(path);
+    if !content.previews.is_empty() {
+        std::fs::create_dir_all(&preview_dir).map_err(|error| format!("Failed to cache previews: {error}"))?;
+    }
+    let preview_paths: std::collections::HashMap<&String, String> = content
+        .previews
+        .iter()
+        .filter_map(|(guid, data)| {
+            let file = preview_dir.join(format!("{guid}.png"));
+            std::fs::write(&file, data).ok()?;
+            Some((guid, file.to_string_lossy().to_string()))
         })
-    }).collect();
+        .collect();
+    let mut entries: Vec<PackageAssetEntry> = content
+        .pathnames
+        .iter()
+        .filter_map(|(guid, pathname)| {
+            if pathname.ends_with('/') {
+                return None;
+            }
+            let asset_type = classify_pathname(pathname)?;
+            let filename = file_name(pathname).to_string();
+            Some(PackageAssetEntry {
+                guid: guid.clone(),
+                pathname: pathname.clone(),
+                extension: crate::files::extension_lowercase(Path::new(&filename)),
+                filename,
+                asset_type: asset_type.to_string(),
+                preview_path: preview_paths.get(guid).cloned(),
+                has_asset_data: content.assets.contains(guid),
+            })
+        })
+        .collect();
     entries.sort_by(|left, right| left.pathname.cmp(&right.pathname));
     Ok(PackageAssetList { total_count: entries.len(), entries })
 }
@@ -46,22 +66,31 @@ pub fn list_assets(path: &str) -> Result<PackageAssetList, String> {
 /// (pathname, filename) of every prefab. Reads only pathnames, not embedded previews.
 pub fn prefab_entries(path: &str) -> Result<Vec<(String, String)>, String> {
     let content = archive::read_package(path, false)?;
-    let mut prefabs: Vec<_> = content.pathnames.into_values()
+    let mut prefabs: Vec<_> = content
+        .pathnames
+        .into_values()
         .filter(|pathname| classify_pathname(pathname) == Some("Prefab"))
-        .map(|pathname| { let filename = file_name(&pathname).to_string(); (pathname, filename) })
+        .map(|pathname| {
+            let filename = file_name(&pathname).to_string();
+            (pathname, filename)
+        })
         .collect();
     prefabs.sort();
     Ok(prefabs)
 }
 
-fn file_name(pathname: &str) -> &str { pathname.rsplit('/').next().unwrap_or(pathname) }
+fn file_name(pathname: &str) -> &str {
+    pathname.rsplit('/').next().unwrap_or(pathname)
+}
 
 fn classify_pathname(pathname: &str) -> Option<&'static str> {
     let extension = crate::files::extension_lowercase(Path::new(pathname));
     let kind = match extension.as_str() {
         "meta" => return None,
-        "fbx" | "obj" | "blend" | "dae" | "3ds" | "max" | "ma" | "mb" | "stl" | "ply" | "gltf" | "glb" | "abc" | "usd" | "usda" | "usdc" | "usdz" => "Model",
-        "png" | "jpg" | "jpeg" | "tga" | "psd" | "exr" | "tif" | "tiff" | "bmp" | "gif" | "hdr" | "svg" | "dds" | "ktx" | "cubemap" | "astc" | "rendertexture" | "flare" | "giparams" => "Texture",
+        "fbx" | "obj" | "blend" | "dae" | "3ds" | "max" | "ma" | "mb" | "stl" | "ply" | "gltf" | "glb" | "abc"
+        | "usd" | "usda" | "usdc" | "usdz" => "Model",
+        "png" | "jpg" | "jpeg" | "tga" | "psd" | "exr" | "tif" | "tiff" | "bmp" | "gif" | "hdr" | "svg" | "dds"
+        | "ktx" | "cubemap" | "astc" | "rendertexture" | "flare" | "giparams" => "Texture",
         "mat" | "physicmaterial" | "physicsmaterial" => "Material",
         "shader" | "shadergraph" | "shadersubgraph" | "hlsl" | "cginc" | "glsl" | "compute" | "raytrace" => "Shader",
         "prefab" => "Prefab",

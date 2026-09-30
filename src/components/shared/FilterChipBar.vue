@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="T extends string">
-import type { FilterOption } from "../../types/ui";
-defineProps<{ options: FilterOption<T>[]; active: T }>();
-defineEmits<{ select: [value: T] }>();
+import type { FilterOption } from '../../types/ui'
+defineProps<{ options: FilterOption<T>[]; active: T }>()
+defineEmits<{ select: [value: T] }>()
 </script>
 <template>
   <div class="chips">
@@ -12,13 +12,12 @@ defineEmits<{ select: [value: T] }>();
       :class="{ active: item.value === active }"
       @click="$emit('select', item.value)"
     >
-      <q-icon v-if="item.icon" :name="item.icon" size="12px" />{{ item.label
-      }}<small>{{ item.count }}</small>
+      <q-icon v-if="item.icon" :name="item.icon" size="12px" />{{ item.label }}<small>{{ item.count }}</small>
     </button>
   </div>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .chips {
   display: flex;
   flex-wrap: wrap;

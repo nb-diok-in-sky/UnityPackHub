@@ -1,12 +1,11 @@
 // Drives the headless Unity instance that renders model covers.
 import type { Asset } from '../types/asset'
 import { MODEL_PREVIEW_BATCH_SIZE, MODEL_PREVIEW_TIMEOUT_MS } from '../domain/modelCover'
-import { dataUrlToBlob } from '../domain/legacyRecords'
-import { backend } from '../platform/backend'
+import { createWakeSignal } from '../domain/wakeSignal'
+import { appFileUrl, backend, onModelPreviewFinished, onModelPreviewResults } from '../platform/backend'
+import { fetchImage } from '../platform/system'
 
-export type ModelCoverOutcome =
-  | { assetId: string; image: Blob }
-  | { assetId: string; error: string }
+export type ModelCoverOutcome = { assetId: string; image: Blob } | { assetId: string; error: string }
 
 export interface ModelCoverRun {
   editorPath: string
@@ -17,8 +16,10 @@ export interface ModelCoverRun {
   isCancelled: () => boolean
 }
 
-const POLL_INTERVAL_MS = 1500
-const UNITY_EXITED_ERROR = 'Unity exited before rendering this model. See %APPDATA%/com.unitypackhub.app/Model picture/unity-render.log'
+/** Results arrive as events; this only matters if file watching is unavailable. */
+const SAFETY_CHECK_MS = 5000
+const UNITY_EXITED_ERROR =
+  'Unity exited before rendering this model. See %APPDATA%/com.unitypackhub.app/Model picture/unity-render.log'
 const TIMEOUT_ERROR = 'Preview generation timed out'
 
 export const modelPreviewService = {
@@ -33,9 +34,17 @@ export const modelPreviewService = {
 }
 
 async function runBatch(run: ModelCoverRun, batch: Asset[]): Promise<void> {
-  await backend.startModelPreviewJob(run.editorPath, batch.map(({ id, filePath }) => ({ assetId: id, sourcePath: filePath })), run.shaderRulesPath)
   const waiting = new Set(batch.map(({ id }) => id))
-  const deadline = Date.now() + MODEL_PREVIEW_TIMEOUT_MS
+  const changed = createWakeSignal()
+  let exited = false
+  // Listen before starting, so no result written in between is missed.
+  const stops = await Promise.all([
+    onModelPreviewResults(() => changed.notify()),
+    onModelPreviewFinished(() => {
+      exited = true
+      changed.notify()
+    }),
+  ])
 
   const collect = async () => {
     for (const result of await backend.collectModelPreviewResults()) {
@@ -45,8 +54,7 @@ async function runBatch(run: ModelCoverRun, batch: Asset[]): Promise<void> {
         continue
       }
       try {
-        const image = dataUrlToBlob(await backend.readImageFile(result.imagePath))
-        await run.onOutcome({ assetId: result.assetId, image })
+        await run.onOutcome({ assetId: result.assetId, image: await fetchImage(appFileUrl(result.imagePath)) })
       } catch (error) {
         await run.onOutcome({ assetId: result.assetId, error: `Failed to read rendered preview: ${String(error)}` })
       }
@@ -57,17 +65,27 @@ async function runBatch(run: ModelCoverRun, batch: Asset[]): Promise<void> {
     waiting.clear()
   }
 
-  while (waiting.size > 0 && !run.isCancelled()) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
-    // Read the process state before collecting, so results written just before exit are not lost.
-    const running = await backend.isModelPreviewJobRunning()
-    await collect()
-    if (waiting.size === 0) return
-    if (!running) return failRemaining(UNITY_EXITED_ERROR)
-    if (Date.now() >= deadline) {
-      await backend.cancelModelPreviewJob()
+  try {
+    await backend.startModelPreviewJob(
+      run.editorPath,
+      batch.map(({ id, filePath }) => ({ assetId: id, sourcePath: filePath })),
+      run.shaderRulesPath,
+    )
+    const deadline = Date.now() + MODEL_PREVIEW_TIMEOUT_MS
+    while (waiting.size > 0 && !run.isCancelled()) {
+      await changed.wait(Math.min(SAFETY_CHECK_MS, deadline - Date.now()))
+      // Read the process state before collecting, so results written just before exit are not lost.
+      const running = !exited && (await backend.isModelPreviewJobRunning())
       await collect()
-      return failRemaining(TIMEOUT_ERROR)
+      if (waiting.size === 0) return
+      if (!running) return await failRemaining(UNITY_EXITED_ERROR)
+      if (Date.now() >= deadline) {
+        await backend.cancelModelPreviewJob()
+        await collect()
+        return await failRemaining(TIMEOUT_ERROR)
+      }
     }
+  } finally {
+    for (const stop of stops) stop()
   }
 }

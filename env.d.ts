@@ -12,4 +12,6 @@
  *   readonly MY_OTHER_VAR: string;
  * }
  */
+// Empty on purpose: declaration merging point for Quasar's ImportMetaEnv.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface ImportMetaEnv {}

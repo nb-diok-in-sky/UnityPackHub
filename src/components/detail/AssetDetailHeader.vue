@@ -1,6 +1,6 @@
 <script setup lang="ts">
-defineProps<{ title: string }>();
-defineEmits<{ close: [] }>();
+defineProps<{ title: string }>()
+defineEmits<{ close: [] }>()
 </script>
 
 <template>
@@ -11,7 +11,7 @@ defineEmits<{ close: [] }>();
 </template>
 
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .header {
   display: flex;
   align-items: center;

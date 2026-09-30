@@ -4,7 +4,8 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { describe, expect, it } from 'vitest'
 
-const V7_ASSETS = 'id, name, fileName, filePath, fileSize, isFavorite, assetKind, createdAt, updatedAt, lastUsedAt, *tagIds'
+const V7_ASSETS =
+  'id, name, fileName, filePath, fileSize, isFavorite, assetKind, createdAt, updatedAt, lastUsedAt, *tagIds'
 
 async function seedVersion7(): Promise<void> {
   const legacy = new Dexie('UnityPackHub')
@@ -19,11 +20,46 @@ async function seedVersion7(): Promise<void> {
     assetStoreLinks: 'assetId, packageId, productName',
   })
   await legacy.open()
-  const base = { notes: 'keep', tagIds: ['t'], isFavorite: true, createdAt: 1, updatedAt: 1, lastUsedAt: 0, fileSize: 10 }
+  const base = {
+    notes: 'keep',
+    tagIds: ['t'],
+    isFavorite: true,
+    createdAt: 1,
+    updatedAt: 1,
+    lastUsedAt: 0,
+    fileSize: 10,
+  }
   await legacy.table('assets').bulkPut([
-    { ...base, id: 'blob', name: 'Blob', fileName: 'Blob.unitypackage', filePath: 'D:\\Blob.unitypackage', assetKind: 'package', thumbnailPath: 'db' },
-    { ...base, id: 'inline', name: 'Inline', fileName: 'Inline.unitypackage', filePath: 'D:\\Inline.unitypackage', assetKind: 'package', thumbnailPath: 'data:image/png;base64,AQID' },
-    { ...base, id: 'model', name: 'Oak', fileName: 'Oak.fbx', filePath: 'D:\\Oak.fbx', assetKind: 'model', thumbnailPath: '', modelPreviewVersion: 3, modelPreviewError: 'boom', modelPreviewEligible: false },
+    {
+      ...base,
+      id: 'blob',
+      name: 'Blob',
+      fileName: 'Blob.unitypackage',
+      filePath: 'D:\\Blob.unitypackage',
+      assetKind: 'package',
+      thumbnailPath: 'db',
+    },
+    {
+      ...base,
+      id: 'inline',
+      name: 'Inline',
+      fileName: 'Inline.unitypackage',
+      filePath: 'D:\\Inline.unitypackage',
+      assetKind: 'package',
+      thumbnailPath: 'data:image/png;base64,AQID',
+    },
+    {
+      ...base,
+      id: 'model',
+      name: 'Oak',
+      fileName: 'Oak.fbx',
+      filePath: 'D:\\Oak.fbx',
+      assetKind: 'model',
+      thumbnailPath: '',
+      modelPreviewVersion: 3,
+      modelPreviewError: 'boom',
+      modelPreviewEligible: false,
+    },
   ])
   await legacy.table('thumbnails').put({ id: 'blob', blob: new Blob([new Uint8Array([9])], { type: 'image/png' }) })
   await legacy.table('tags').put({ id: 't', label: 'Forest', color: '#000' })

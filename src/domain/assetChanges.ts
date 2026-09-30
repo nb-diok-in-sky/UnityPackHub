@@ -31,15 +31,20 @@ export function diffEdits(assets: readonly Asset[], edit: (asset: Asset) => Asse
   return changes
 }
 
-export const addTag = (tagId: string) => (asset: Asset): AssetEdit =>
-  asset.tagIds.includes(tagId) ? {} : { tagIds: [...asset.tagIds, tagId] }
+export const addTag =
+  (tagId: string) =>
+  (asset: Asset): AssetEdit =>
+    asset.tagIds.includes(tagId) ? {} : { tagIds: [...asset.tagIds, tagId] }
 
-export const removeTag = (tagId: string) => (asset: Asset): AssetEdit =>
-  asset.tagIds.includes(tagId) ? { tagIds: asset.tagIds.filter((id) => id !== tagId) } : {}
+export const removeTag =
+  (tagId: string) =>
+  (asset: Asset): AssetEdit =>
+    asset.tagIds.includes(tagId) ? { tagIds: asset.tagIds.filter((id) => id !== tagId) } : {}
 
 export const setFavorite = (isFavorite: boolean) => (): AssetEdit => ({ isFavorite })
 
 function sameValue(left: unknown, right: unknown): boolean {
-  if (Array.isArray(left) && Array.isArray(right)) return left.length === right.length && left.every((value, index) => value === right[index])
+  if (Array.isArray(left) && Array.isArray(right))
+    return left.length === right.length && left.every((value, index) => value === right[index])
   return left === right
 }

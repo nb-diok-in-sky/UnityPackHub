@@ -2,13 +2,17 @@
 import type { Asset, UnityAssetProjectState } from '../types/asset'
 import { linkModelsToProject } from '../domain/unityLinking'
 import { packagePreviewKey } from '../domain/paths'
-import { backend, type EditorActionResult } from '../platform/backend'
+import { backend, onEditorActionResult, type EditorActionResult } from '../platform/backend'
+import { createWakeSignal } from '../domain/wakeSignal'
 import { unityLinkRepository } from '../data/repositories'
 
 export type UnityActionError = 'no-project' | 'bridge-offline' | 'bridge-outdated' | 'timeout'
 
 export class UnityError extends Error {
-  constructor(readonly reason: UnityActionError | 'unity', message: string = reason) {
+  constructor(
+    readonly reason: UnityActionError | 'unity',
+    message: string = reason,
+  ) {
     super(message)
   }
 }
@@ -21,7 +25,11 @@ export interface ImportResult {
 }
 
 async function detectProject(): Promise<string | null> {
-  try { return await backend.detectUnityProject() } catch { return null }
+  try {
+    return await backend.detectUnityProject()
+  } catch {
+    return null
+  }
 }
 
 async function requireProject(): Promise<string> {
@@ -30,23 +38,40 @@ async function requireProject(): Promise<string> {
   return projectPath
 }
 
-async function runEditorAction(projectPath: string, action: string, sourcePath = '', timeoutMs = 12_000): Promise<EditorActionResult> {
+async function runEditorAction(
+  projectPath: string,
+  action: string,
+  sourcePath = '',
+  timeoutMs = 12_000,
+): Promise<EditorActionResult> {
   const status = await backend.unityBridgeStatus(projectPath)
   if (status !== 'ready') {
     // Installing makes Unity pick the bridge up on its next compile; the user retries afterwards.
     await backend.installUnityBridge(projectPath)
     throw new UnityError(status === 'outdated' ? 'bridge-outdated' : 'bridge-offline')
   }
-  const id = await backend.requestUnityEditorAction(projectPath, action, sourcePath)
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 250))
-    const result = await backend.collectUnityEditorActionResult(id)
-    if (!result) continue
-    if (!result.success) throw new UnityError('unity', result.message)
-    return result
+  // Listen before sending, so an answer that arrives immediately is not missed.
+  const answered = createWakeSignal()
+  let id = ''
+  const stop = await onEditorActionResult((answeredId) => {
+    if (answeredId === id) answered.notify()
+  })
+  try {
+    id = await backend.requestUnityEditorAction(projectPath, action, sourcePath)
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      const result = await backend.collectUnityEditorActionResult(id)
+      if (result) {
+        if (!result.success) throw new UnityError('unity', result.message)
+        return result
+      }
+      // Answers arrive as events; the short timeout only covers a failed file watcher.
+      await answered.wait(Math.min(1000, deadline - Date.now()))
+    }
+    throw new UnityError('timeout')
+  } finally {
+    stop()
   }
-  throw new UnityError('timeout')
 }
 
 export const unityService = {
@@ -62,7 +87,11 @@ export const unityService = {
       await backend.openWithDefaultApp(asset.filePath)
       return { projectPath: null, bridgeInstalled: false }
     }
-    const bridgeInstalled = await backend.importPackageIntoUnity(asset.filePath, projectPath, packagePreviewKey(asset.filePath))
+    const bridgeInstalled = await backend.importPackageIntoUnity(
+      asset.filePath,
+      projectPath,
+      packagePreviewKey(asset.filePath),
+    )
     return { projectPath, bridgeInstalled }
   },
 

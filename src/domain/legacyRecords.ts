@@ -18,7 +18,13 @@ export function migrateAssetRecord(record: LegacyAssetRecord): Asset {
     assetKind,
     cover: thumbnailPath === 'db' || thumbnailPath.startsWith('data:') ? 'stored' : 'none',
     ...(assetKind === 'model'
-      ? { modelPreview: { version: modelPreviewVersion ?? 0, error: modelPreviewError ?? '', eligible: modelPreviewEligible !== false } }
+      ? {
+          modelPreview: {
+            version: modelPreviewVersion ?? 0,
+            error: modelPreviewError ?? '',
+            eligible: modelPreviewEligible !== false,
+          },
+        }
       : {}),
   }
 }

@@ -33,12 +33,16 @@ const scrollTop = ref(0)
 const cardWidth = computed(() => CARD_SIZE_MAP[settingsStore.settings.cardSize])
 const cardHeight = computed(() => Math.ceil(cardWidth.value * 0.75) + CARD_BODY_HEIGHT)
 const rowHeight = computed(() => cardHeight.value + CARD_GAP)
-const columnCount = computed(() => Math.max(1, Math.floor((viewportWidth.value + CARD_GAP) / (cardWidth.value + CARD_GAP))))
+const columnCount = computed(() =>
+  Math.max(1, Math.floor((viewportWidth.value + CARD_GAP) / (cardWidth.value + CARD_GAP))),
+)
 const rowCount = computed(() => Math.ceil(browse.visibleAssets.length / columnCount.value))
 const firstRow = computed(() => Math.max(0, Math.floor(scrollTop.value / rowHeight.value) - OVERSCAN_ROWS))
 const visibleRowCount = computed(() => Math.ceil(viewportHeight.value / rowHeight.value) + OVERSCAN_ROWS * 2)
 const lastRow = computed(() => Math.min(rowCount.value, firstRow.value + visibleRowCount.value))
-const windowAssets = computed(() => browse.visibleAssets.slice(firstRow.value * columnCount.value, lastRow.value * columnCount.value))
+const windowAssets = computed(() =>
+  browse.visibleAssets.slice(firstRow.value * columnCount.value, lastRow.value * columnCount.value),
+)
 const topSpacer = computed(() => firstRow.value * rowHeight.value)
 const bottomSpacer = computed(() => Math.max(0, (rowCount.value - lastRow.value) * rowHeight.value))
 
@@ -58,20 +62,23 @@ function handleScroll(): void {
   scrollTop.value = scrollElement.value?.scrollTop ?? 0
 }
 
-watch([
-  () => browse.search,
-  () => browse.favoritesOnly,
-  () => browse.kind,
-  () => browse.modelCover,
-  () => browse.activeTagId,
-  () => browse.activeGroupId,
-  () => projectStore.filter,
-  () => settingsStore.settings.cardSize,
-], async () => {
-  await nextTick()
-  scrollElement.value?.scrollTo({ top: 0 })
-  updateViewport()
-})
+watch(
+  [
+    () => browse.search,
+    () => browse.favoritesOnly,
+    () => browse.kind,
+    () => browse.modelCover,
+    () => browse.activeTagId,
+    () => browse.activeGroupId,
+    () => projectStore.filter,
+    () => settingsStore.settings.cardSize,
+  ],
+  async () => {
+    await nextTick()
+    scrollElement.value?.scrollTo({ top: 0 })
+    updateViewport()
+  },
+)
 
 onMounted(() => {
   resizeObserver = new ResizeObserver(updateViewport)
@@ -133,9 +140,30 @@ onUnmounted(() => resizeObserver?.disconnect())
   padding: $spacing-padding;
   background: $color-background;
 
-  &__virtual { min-height: 100%; }
-  &__container { display: grid; gap: $spacing-card-gap; align-items: start; }
-  &__state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; color: $color-secondary; font-size: 15px; p { margin: 0; } }
-  &__hint { font-size: 12px; opacity: 0.8; }
+  &__virtual {
+    min-height: 100%;
+  }
+  &__container {
+    display: grid;
+    gap: $spacing-card-gap;
+    align-items: start;
+  }
+  &__state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 16px;
+    color: $color-secondary;
+    font-size: 15px;
+    p {
+      margin: 0;
+    }
+  }
+  &__hint {
+    font-size: 12px;
+    opacity: 0.8;
+  }
 }
 </style>

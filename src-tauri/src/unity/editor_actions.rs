@@ -3,7 +3,11 @@
 use crate::paths;
 use crate::protocol::{self, EditorActionRequest, EditorActionResult, Heartbeat};
 use serde::Serialize;
-use std::{fs, path::Path, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{
+    fs,
+    path::Path,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -26,30 +30,57 @@ pub fn status(project_path: &str) -> BridgeStatus {
     for entry in fs::read_dir(&root).into_iter().flatten().flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
         let is_heartbeat = name.starts_with(protocol::HEARTBEAT_PREFIX) || name == "heartbeat.json";
-        if !is_heartbeat || !name.ends_with(".json") || !is_fresh(&entry.path()) { continue; }
+        if !is_heartbeat || !name.ends_with(".json") || !is_fresh(&entry.path()) {
+            continue;
+        }
         // Bridges before protocol 2 wrote a bare timestamp without version or project.
-        let Some(heartbeat) = fs::read_to_string(entry.path()).ok()
-            .and_then(|text| serde_json::from_str::<Heartbeat>(&text).ok()) else { outdated = true; continue };
-        if heartbeat.project_path.is_empty() { outdated = true; continue; }
-        if !protocol::same_project(&heartbeat.project_path, project_path) { continue; }
-        if heartbeat.version == protocol::VERSION { return BridgeStatus::Ready; }
+        let Some(heartbeat) =
+            fs::read_to_string(entry.path()).ok().and_then(|text| serde_json::from_str::<Heartbeat>(&text).ok())
+        else {
+            outdated = true;
+            continue;
+        };
+        if heartbeat.project_path.is_empty() {
+            outdated = true;
+            continue;
+        }
+        if !protocol::same_project(&heartbeat.project_path, project_path) {
+            continue;
+        }
+        if heartbeat.version == protocol::VERSION {
+            return BridgeStatus::Ready;
+        }
         outdated = true;
     }
-    if outdated { BridgeStatus::Outdated } else { BridgeStatus::Offline }
+    if outdated {
+        BridgeStatus::Outdated
+    } else {
+        BridgeStatus::Offline
+    }
 }
 
 fn is_fresh(path: &Path) -> bool {
-    fs::metadata(path).and_then(|metadata| metadata.modified()).ok()
+    fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
         .and_then(|time| time.elapsed().ok())
         .is_some_and(|elapsed| elapsed < HEARTBEAT_TIMEOUT)
 }
 
 pub fn request(project_path: &str, action: &str, source_path: &str) -> Result<String, String> {
     let project = Path::new(project_path);
-    if !project.join("Assets").is_dir() { return Err("Invalid Unity project path".into()); }
+    if !project.join("Assets").is_dir() {
+        return Err("Invalid Unity project path".into());
+    }
     let millis = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|error| error.to_string())?.as_millis();
     let id = format!("{}-{millis}", std::process::id());
-    let request = EditorActionRequest { id: &id, project_path, action, source_path, asset_path: project_asset_path(project, Path::new(source_path)) };
+    let request = EditorActionRequest {
+        id: &id,
+        project_path,
+        action,
+        source_path,
+        asset_path: project_asset_path(project, Path::new(source_path)),
+    };
     let pending = paths::editor_actions_root().join("pending");
     fs::create_dir_all(&pending).map_err(|error| error.to_string())?;
     let text = serde_json::to_string_pretty(&request).map_err(|error| error.to_string())?;
@@ -67,7 +98,9 @@ pub fn collect(id: &str) -> Result<Option<EditorActionResult>, String> {
 
 /// `Assets/...` path of a file that already lives inside the project, if it does.
 fn project_asset_path(project: &Path, source: &Path) -> String {
-    source.strip_prefix(project.join("Assets")).ok()
+    source
+        .strip_prefix(project.join("Assets"))
+        .ok()
         .map(|relative| format!("Assets/{}", relative.to_string_lossy().replace('\\', "/")))
         .unwrap_or_default()
 }

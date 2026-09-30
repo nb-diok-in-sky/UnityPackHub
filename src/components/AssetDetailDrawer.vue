@@ -1,43 +1,41 @@
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from "vue";
-import type { Asset } from "../types/asset";
-import { useI18n } from "../i18n";
-import { useAssetDetailActions } from "../composables/useAssetDetailActions";
-import ShowcaseSection from "./detail/ShowcaseSection.vue";
-import ModelShowcaseSection from "./detail/ModelShowcaseSection.vue";
-import UnityPreviewsSection from "./detail/UnityPreviewsSection.vue";
-import AssetCoverEditor from "./detail/AssetCoverEditor.vue";
-import AssetNotesEditor from "./detail/AssetNotesEditor.vue";
-import AssetTagEditor from "./detail/AssetTagEditor.vue";
-import UnityProjectAssetPanel from "./detail/UnityProjectAssetPanel.vue";
-import AssetDetailHeader from "./detail/AssetDetailHeader.vue";
-import AssetDetailActions from "./detail/AssetDetailActions.vue";
-import AssetFileInfo from "./detail/AssetFileInfo.vue";
+import { computed, ref, toRef, watch } from 'vue'
+import type { Asset } from '../types/asset'
+import { useI18n } from '../i18n'
+import { useAssetDetailActions } from '../composables/useAssetDetailActions'
+import ShowcaseSection from './detail/ShowcaseSection.vue'
+import ModelShowcaseSection from './detail/ModelShowcaseSection.vue'
+import UnityPreviewsSection from './detail/UnityPreviewsSection.vue'
+import AssetCoverEditor from './detail/AssetCoverEditor.vue'
+import AssetNotesEditor from './detail/AssetNotesEditor.vue'
+import AssetTagEditor from './detail/AssetTagEditor.vue'
+import UnityProjectAssetPanel from './detail/UnityProjectAssetPanel.vue'
+import AssetDetailHeader from './detail/AssetDetailHeader.vue'
+import AssetDetailActions from './detail/AssetDetailActions.vue'
+import AssetFileInfo from './detail/AssetFileInfo.vue'
 
-const props = defineProps<{ asset: Asset | null }>();
-const emit = defineEmits<{ close: [] }>();
-const { t } = useI18n();
-const actions = useAssetDetailActions(toRef(props, "asset"));
-const showcaseRef = ref<InstanceType<typeof ShowcaseSection> | null>(null);
-const modelShowcaseRef = ref<InstanceType<typeof ModelShowcaseSection> | null>(
-  null,
-);
-const previewsRef = ref<InstanceType<typeof UnityPreviewsSection> | null>(null);
-const isModel = computed(() => props.asset?.assetKind === "model");
+const props = defineProps<{ asset: Asset | null }>()
+const emit = defineEmits<{ close: [] }>()
+const { t } = useI18n()
+const actions = useAssetDetailActions(toRef(props, 'asset'))
+const showcaseRef = ref<InstanceType<typeof ShowcaseSection> | null>(null)
+const modelShowcaseRef = ref<InstanceType<typeof ModelShowcaseSection> | null>(null)
+const previewsRef = ref<InstanceType<typeof UnityPreviewsSection> | null>(null)
+const isModel = computed(() => props.asset?.assetKind === 'model')
 
 // flush: "post" so the section refs exist when the drawer opens from the closed state;
 // with the default pre-flush they are still null and Unity previews never loaded.
 watch(
   () => props.asset?.id,
   () => {
-    actions.resetStatus();
-    showcaseRef.value?.reset();
-    modelShowcaseRef.value?.reset();
-    previewsRef.value?.reset();
-    if (props.asset) previewsRef.value?.loadPreviews();
+    actions.resetStatus()
+    showcaseRef.value?.reset()
+    modelShowcaseRef.value?.reset()
+    previewsRef.value?.reset()
+    if (props.asset) previewsRef.value?.loadPreviews()
   },
-  { flush: "post", immediate: true },
-);
+  { flush: 'post', immediate: true },
+)
 </script>
 
 <template>
@@ -80,11 +78,7 @@ watch(
           />
           <ShowcaseSection v-if="!isModel" ref="showcaseRef" :asset="asset" />
           <ModelShowcaseSection v-else ref="modelShowcaseRef" :asset="asset" />
-          <UnityPreviewsSection
-            v-if="!isModel"
-            ref="previewsRef"
-            :asset="asset"
-          />
+          <UnityPreviewsSection v-if="!isModel" ref="previewsRef" :asset="asset" />
         </div>
       </div>
     </div>
@@ -92,7 +86,7 @@ watch(
 </template>
 
 <style scoped lang="scss">
-@use "../styles/variables" as *;
+@use '../styles/variables' as *;
 .overlay {
   position: fixed;
   inset: 0;

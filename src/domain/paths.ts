@@ -30,7 +30,10 @@ export function isInsideDirectory(filePath: string, directory: string): boolean 
  * Whether an asset belongs in the library view: its scan folder is enabled and was readable
  * in the last scan. Other assets are hidden, not deleted, so their data survives.
  */
-export function isAssetAvailable(asset: { filePath: string; offline?: boolean }, enabledDirectories: readonly string[]): boolean {
+export function isAssetAvailable(
+  asset: { filePath: string; offline?: boolean },
+  enabledDirectories: readonly string[],
+): boolean {
   return !asset.offline && enabledDirectories.some((directory) => isInsideDirectory(asset.filePath, directory))
 }
 

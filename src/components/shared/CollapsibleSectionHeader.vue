@@ -1,6 +1,6 @@
 <script setup lang="ts">
-defineProps<{ title: string; open: boolean; loading?: boolean }>();
-defineEmits<{ toggle: [] }>();
+defineProps<{ title: string; open: boolean; loading?: boolean }>()
+defineEmits<{ toggle: [] }>()
 </script>
 <template>
   <header class="header">
@@ -20,7 +20,7 @@ defineEmits<{ toggle: [] }>();
   </header>
 </template>
 <style scoped lang="scss">
-@use "../../styles/variables" as *;
+@use '../../styles/variables' as *;
 .header {
   display: flex;
   align-items: center;

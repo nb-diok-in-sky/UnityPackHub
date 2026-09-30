@@ -45,7 +45,11 @@ export const useModelCoverStore = defineStore('modelCovers', () => {
     counters.failed++
     const previous = asset.modelPreview ?? { version: 0, error: '', eligible: true }
     await assets.patch(asset.id, {
-      modelPreview: { ...previous, error: outcome.error, eligible: previous.eligible && !isPermanentRenderFailure(outcome.error) },
+      modelPreview: {
+        ...previous,
+        error: outcome.error,
+        eligible: previous.eligible && !isPermanentRenderFailure(outcome.error),
+      },
     })
   }
 

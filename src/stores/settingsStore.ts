@@ -12,7 +12,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function applyTheme(): void {
     const theme = settings.value.theme
-    document.documentElement.classList.toggle('dark-theme', theme === 'dark' || (theme === 'system' && systemDark.matches))
+    document.documentElement.classList.toggle(
+      'dark-theme',
+      theme === 'dark' || (theme === 'system' && systemDark.matches),
+    )
   }
   systemDark.addEventListener('change', applyTheme)
 
@@ -32,19 +35,44 @@ export const useSettingsStore = defineStore('settings', () => {
     settings,
     load,
     update,
-    setCardSize: (size: CardSize) => update((draft) => { draft.cardSize = size }),
-    setSortBy: (key: SortKey) => update((draft) => { draft.sortBy = key }),
-    setSortOrder: (order: SortOrder) => update((draft) => { draft.sortOrder = order }),
-    setUnityEditorPath: (path: string) => update((draft) => { draft.unityEditorPath = path }),
-    setShaderAdapterRulesPath: (path: string) => update((draft) => { draft.shaderAdapters.rulesPath = path }),
-    addQuickLink: (link: QuickLink) => update((draft) => { draft.quickLinks.push(link) }),
-    removeQuickLink: (url: string) => update((draft) => { draft.quickLinks = draft.quickLinks.filter((link) => link.url !== url) }),
+    setCardSize: (size: CardSize) =>
+      update((draft) => {
+        draft.cardSize = size
+      }),
+    setSortBy: (key: SortKey) =>
+      update((draft) => {
+        draft.sortBy = key
+      }),
+    setSortOrder: (order: SortOrder) =>
+      update((draft) => {
+        draft.sortOrder = order
+      }),
+    setUnityEditorPath: (path: string) =>
+      update((draft) => {
+        draft.unityEditorPath = path
+      }),
+    setShaderAdapterRulesPath: (path: string) =>
+      update((draft) => {
+        draft.shaderAdapters.rulesPath = path
+      }),
+    addQuickLink: (link: QuickLink) =>
+      update((draft) => {
+        draft.quickLinks.push(link)
+      }),
+    removeQuickLink: (url: string) =>
+      update((draft) => {
+        draft.quickLinks = draft.quickLinks.filter((link) => link.url !== url)
+      }),
     async setAppLocale(locale: AppLocale): Promise<void> {
-      await update((draft) => { draft.locale = locale })
+      await update((draft) => {
+        draft.locale = locale
+      })
       setLocale(locale)
     },
     async setTheme(theme: AppTheme): Promise<void> {
-      await update((draft) => { draft.theme = theme })
+      await update((draft) => {
+        draft.theme = theme
+      })
       applyTheme()
     },
   }

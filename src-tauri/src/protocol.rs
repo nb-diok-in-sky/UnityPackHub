@@ -53,7 +53,9 @@ pub struct ManifestEntry {
     pub render_type: String,
 }
 
-fn default_render_type() -> String { "thumbnail".into() }
+fn default_render_type() -> String {
+    "thumbnail".into()
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ManifestFile {
@@ -66,7 +68,10 @@ pub struct ManifestFile {
 pub fn parse_manifest(text: &str) -> Result<Vec<ManifestEntry>, serde_json::Error> {
     #[derive(Deserialize)]
     #[serde(untagged)]
-    enum AnyManifest { Current(ManifestFile), Legacy(Vec<ManifestEntry>) }
+    enum AnyManifest {
+        Current(ManifestFile),
+        Legacy(Vec<ManifestEntry>),
+    }
     Ok(match serde_json::from_str(text)? {
         AnyManifest::Current(file) => file.entries,
         AnyManifest::Legacy(entries) => entries,
@@ -76,7 +81,10 @@ pub fn parse_manifest(text: &str) -> Result<Vec<ManifestEntry>, serde_json::Erro
 /// PNG name for a package prefab preview. The only definition of the naming scheme: the
 /// frontend receives these names from the backend and Unity reads them from `prefabs.json`.
 pub fn preview_output_file(pathname: &str, filename: &str) -> String {
-    let hash = pathname.replace('\\', "/").to_ascii_lowercase().bytes()
+    let hash = pathname
+        .replace('\\', "/")
+        .to_ascii_lowercase()
+        .bytes()
         .fold(2166136261_u32, |hash, byte| (hash ^ byte as u32).wrapping_mul(16777619));
     format!("{filename}--{hash:08x}.png")
 }
@@ -184,7 +192,10 @@ mod tests {
 
     #[test]
     fn preview_names_hash_utf8_bytes_of_the_normalized_pathname() {
-        assert_eq!(preview_output_file(r"Assets\Trees\Oak.prefab", "Oak.prefab"), preview_output_file("assets/trees/oak.prefab", "Oak.prefab"));
+        assert_eq!(
+            preview_output_file(r"Assets\Trees\Oak.prefab", "Oak.prefab"),
+            preview_output_file("assets/trees/oak.prefab", "Oak.prefab")
+        );
         assert_eq!(preview_output_file("Assets/树/橡树.prefab", "橡树.prefab"), "橡树.prefab--130de7c6.png");
     }
 

@@ -11,7 +11,10 @@ const PAGE_HEADERS = {
 }
 
 export class AssetStoreError extends Error {
-  constructor(readonly reason: 'invalid-url' | 'request-failed' | 'no-cover', readonly status?: number) {
+  constructor(
+    readonly reason: 'invalid-url' | 'request-failed' | 'no-cover',
+    readonly status?: number,
+  ) {
     super(reason)
   }
 }
@@ -29,7 +32,14 @@ export const assetStoreService = {
 
   async remembered(assetId: string): Promise<AssetStoreProduct | null> {
     const record = await assetStoreLinkRepository.get(assetId)
-    return record ? { packageId: record.packageId, name: record.productName, productUrl: record.productUrl, imageUrl: record.imageUrl } : null
+    return record
+      ? {
+          packageId: record.packageId,
+          name: record.productName,
+          productUrl: record.productUrl,
+          imageUrl: record.imageUrl,
+        }
+      : null
   },
 
   async remember(assetId: string, product: AssetStoreProduct): Promise<void> {

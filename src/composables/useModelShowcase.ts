@@ -15,20 +15,33 @@ export function useModelShowcase(asset: () => Asset) {
   const open = ref(false)
   const filter = ref<ModelFileFilter>('all')
 
-  const filtered = computed(() => (filter.value === 'all' ? files.value : files.value.filter((file) => file.fileType === filter.value)))
-  const counts = computed(() => files.value.reduce<Record<string, number>>((result, file) => {
-    result[file.fileType] = (result[file.fileType] ?? 0) + 1
-    return result
-  }, { all: files.value.length }))
+  const filtered = computed(() =>
+    filter.value === 'all' ? files.value : files.value.filter((file) => file.fileType === filter.value),
+  )
+  const counts = computed(() =>
+    files.value.reduce<Record<string, number>>(
+      (result, file) => {
+        result[file.fileType] = (result[file.fileType] ?? 0) + 1
+        return result
+      },
+      { all: files.value.length },
+    ),
+  )
 
   async function toggle(): Promise<void> {
-    if (open.value) { open.value = false; return }
+    if (open.value) {
+      open.value = false
+      return
+    }
     open.value = true
     if (loaded.value) return
     loading.value = true
     try {
       const path = asset().filePath
-      ;[files.value, metadata.value] = await Promise.all([modelFilesService.relatedFiles(path), modelFilesService.metadata(path)])
+      ;[files.value, metadata.value] = await Promise.all([
+        modelFilesService.relatedFiles(path),
+        modelFilesService.metadata(path),
+      ])
       loaded.value = true
     } finally {
       loading.value = false
@@ -44,5 +57,16 @@ export function useModelShowcase(asset: () => Asset) {
     filter.value = 'all'
   }
 
-  return { files, metadata, loading, open, filter, filtered, counts, toggle, reset, reveal: (path: string) => fileService.reveal(path) }
+  return {
+    files,
+    metadata,
+    loading,
+    open,
+    filter,
+    filtered,
+    counts,
+    toggle,
+    reset,
+    reveal: (path: string) => fileService.reveal(path),
+  }
 }

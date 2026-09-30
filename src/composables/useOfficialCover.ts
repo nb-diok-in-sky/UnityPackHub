@@ -18,12 +18,15 @@ export function useOfficialCover(asset: Ref<Asset>) {
   const loading = ref(false)
   const error = ref('')
 
-  watch(() => asset.value.id, () => {
-    dialogOpen.value = false
-    productUrl.value = ''
-    product.value = null
-    error.value = ''
-  })
+  watch(
+    () => asset.value.id,
+    () => {
+      dialogOpen.value = false
+      productUrl.value = ''
+      product.value = null
+      error.value = ''
+    },
+  )
 
   function describe(reason: unknown): string {
     if (!(reason instanceof AssetStoreError)) return errorMessage(reason)
@@ -35,7 +38,13 @@ export function useOfficialCover(asset: Ref<Asset>) {
   async function run(action: () => Promise<void>): Promise<void> {
     loading.value = true
     error.value = ''
-    try { await action() } catch (reason) { error.value = describe(reason) } finally { loading.value = false }
+    try {
+      await action()
+    } catch (reason) {
+      error.value = describe(reason)
+    } finally {
+      loading.value = false
+    }
   }
 
   return {
@@ -51,15 +60,17 @@ export function useOfficialCover(asset: Ref<Asset>) {
       productUrl.value = product.value?.productUrl ?? ''
     },
     openSearch: () => fileService.openUrl(assetStoreSearchUrl(asset.value.name)),
-    resolveProduct: () => run(async () => {
-      product.value = null
-      product.value = await assetStoreService.resolveProduct(productUrl.value)
-    }),
-    applyCover: () => run(async () => {
-      if (!product.value) return
-      await assets.setCover(asset.value, await coverService.imageFromUrl(product.value.imageUrl))
-      await assetStoreService.remember(asset.value.id, product.value)
-      dialogOpen.value = false
-    }),
+    resolveProduct: () =>
+      run(async () => {
+        product.value = null
+        product.value = await assetStoreService.resolveProduct(productUrl.value)
+      }),
+    applyCover: () =>
+      run(async () => {
+        if (!product.value) return
+        await assets.setCover(asset.value, await coverService.imageFromUrl(product.value.imageUrl))
+        await assetStoreService.remember(asset.value.id, product.value)
+        dialogOpen.value = false
+      }),
   }
 }

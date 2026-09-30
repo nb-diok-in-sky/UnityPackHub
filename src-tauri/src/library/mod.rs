@@ -19,7 +19,9 @@ const PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 pub fn scan_directories(app: tauri::AppHandle, dirs: Vec<String>) -> Result<ScanResult, String> {
     let mut last_report = Instant::now();
     scan::scan_directories(dirs, |progress| {
-        if last_report.elapsed() < PROGRESS_INTERVAL { return; }
+        if last_report.elapsed() < PROGRESS_INTERVAL {
+            return;
+        }
         last_report = Instant::now();
         let _ = app.emit(SCAN_PROGRESS_EVENT, progress);
     })

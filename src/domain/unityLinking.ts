@@ -38,19 +38,32 @@ export function linkModelsToProject(
     const pathMatch = relative ? byPath.get(relative) : undefined
     const candidates = byFileName.get(asset.fileName.toLocaleLowerCase()) ?? []
     const matched = guidMatch ?? pathMatch ?? (candidates.length === 1 ? candidates[0] : undefined)
-    const status: UnityLinkStatus = matched ? 'linked' : previous ? 'missing' : candidates.length > 1 ? 'ambiguous' : 'unlinked'
-    const link: UnityAssetLink | null = matched ? {
-      id: `${normalize(projectPath)}::${asset.id}`,
-      assetId: asset.id,
-      projectPath,
-      unityGuid: matched.guid,
-      unityPath: matched.path,
-      matchMethod: guidMatch ? previous?.matchMethod ?? 'manual' : pathMatch ? 'path' : 'filename',
-      status: 'linked',
-      lastVerifiedAt: now,
-    } : null
+    const status: UnityLinkStatus = matched
+      ? 'linked'
+      : previous
+        ? 'missing'
+        : candidates.length > 1
+          ? 'ambiguous'
+          : 'unlinked'
+    const link: UnityAssetLink | null = matched
+      ? {
+          id: `${normalize(projectPath)}::${asset.id}`,
+          assetId: asset.id,
+          projectPath,
+          unityGuid: matched.guid,
+          unityPath: matched.path,
+          matchMethod: guidMatch ? (previous?.matchMethod ?? 'manual') : pathMatch ? 'path' : 'filename',
+          status: 'linked',
+          lastVerifiedAt: now,
+        }
+      : null
     if (link) links.push(link)
-    states.set(asset.id, { link, projectAsset: matched ?? null, status, duplicateCandidates: candidates.length > 1 ? candidates : [] })
+    states.set(asset.id, {
+      link,
+      projectAsset: matched ?? null,
+      status,
+      duplicateCandidates: candidates.length > 1 ? candidates : [],
+    })
   }
   return { links, states }
 }

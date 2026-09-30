@@ -34,8 +34,13 @@ export const useLibraryStore = defineStore('library', () => {
     scanProgress.value = null
     try {
       const { classification } = settings.settings
-      const { warnings } = await libraryService.scan(settings.settings.scanDirectories, classification.enabled ? classification.jsonPath : '',
-        (progress) => { scanProgress.value = progress })
+      const { warnings } = await libraryService.scan(
+        settings.settings.scanDirectories,
+        classification.enabled ? classification.jsonPath : '',
+        (progress) => {
+          scanProgress.value = progress
+        },
+      )
       useAssetStore().clearHistory()
       await reload()
       for (const warning of warnings) notify.warning(describe(warning))
@@ -48,14 +53,20 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function addDirectory(path: string): Promise<void> {
     if (settings.settings.scanDirectories.some((directory) => directory.path === path)) return
-    await settings.update((draft) => { draft.scanDirectories.push({ path, enabled: true }) })
+    await settings.update((draft) => {
+      draft.scanDirectories.push({ path, enabled: true })
+    })
     await scan()
   }
 
   /** Forgets a folder and removes its assets (files on disk are untouched). */
   async function removeDirectory(path: string): Promise<void> {
-    await settings.update((draft) => { draft.scanDirectories = draft.scanDirectories.filter((directory) => directory.path !== path) })
-    const remaining = settings.settings.scanDirectories.filter((directory) => directory.enabled).map((directory) => directory.path)
+    await settings.update((draft) => {
+      draft.scanDirectories = draft.scanDirectories.filter((directory) => directory.path !== path)
+    })
+    const remaining = settings.settings.scanDirectories
+      .filter((directory) => directory.enabled)
+      .map((directory) => directory.path)
     await libraryService.removeDirectory(path, remaining)
     useAssetStore().clearHistory()
     await reload()
@@ -71,7 +82,9 @@ export const useLibraryStore = defineStore('library', () => {
   }
 
   async function setClassificationTable(jsonPath: string): Promise<void> {
-    await settings.update((draft) => { draft.classification = { jsonPath, enabled: jsonPath.length > 0 } })
+    await settings.update((draft) => {
+      draft.classification = { jsonPath, enabled: jsonPath.length > 0 }
+    })
     if (jsonPath) await scan()
     else {
       await classificationService.clear()

@@ -30,7 +30,9 @@ export const useBrowseStore = defineStore('browse', () => {
 
   /** Assets of enabled, reachable scan folders; the rest stay in the database but are hidden. */
   const libraryAssets = computed(() => {
-    const enabled = settings.settings.scanDirectories.filter((directory) => directory.enabled).map((directory) => directory.path)
+    const enabled = settings.settings.scanDirectories
+      .filter((directory) => directory.enabled)
+      .map((directory) => directory.path)
     return assets.assets.filter((asset) => isAssetAvailable(asset, enabled))
   })
   const statistics = computed(() => {
@@ -41,21 +43,27 @@ export const useBrowseStore = defineStore('browse', () => {
     }
     return counts
   })
-  const searchIndex = computed(() => new Map(libraryAssets.value.map((asset) => [asset.id, searchText(asset, tags.tagMap)])))
+  const searchIndex = computed(
+    () => new Map(libraryAssets.value.map((asset) => [asset.id, searchText(asset, tags.tagMap)])),
+  )
   const kindAssets = computed(() => libraryAssets.value.filter((asset) => asset.assetKind === kind.value))
   const visibleAssets = computed(() => {
     const group = groups.groups.find((current) => current.id === activeGroupId.value)
-    return queryAssets(libraryAssets.value, {
-      kind: kind.value,
-      search: search.value,
-      favoritesOnly: favoritesOnly.value,
-      tagId: activeTagId.value,
-      groupAssetIds: group ? new Set(group.assetIds) : null,
-      modelCover: modelCover.value,
-      project: project.isSynchronized ? { filter: project.filter, stateOf: project.stateOf } : null,
-      sortBy: settings.settings.sortBy,
-      sortOrder: settings.settings.sortOrder,
-    }, (asset) => searchIndex.value.get(asset.id) ?? '')
+    return queryAssets(
+      libraryAssets.value,
+      {
+        kind: kind.value,
+        search: search.value,
+        favoritesOnly: favoritesOnly.value,
+        tagId: activeTagId.value,
+        groupAssetIds: group ? new Set(group.assetIds) : null,
+        modelCover: modelCover.value,
+        project: project.isSynchronized ? { filter: project.filter, stateOf: project.stateOf } : null,
+        sortBy: settings.settings.sortBy,
+        sortOrder: settings.settings.sortOrder,
+      },
+      (asset) => searchIndex.value.get(asset.id) ?? '',
+    )
   })
 
   /** Sidebar filters are exclusive: favourites, one tag or one group. */
@@ -80,11 +88,28 @@ export const useBrowseStore = defineStore('browse', () => {
     clearSelection()
   }
 
-  function showFavorites(): void { showAll(); favoritesOnly.value = true }
-  function toggleTag(id: string): void { const next = activeTagId.value === id ? null : id; showAll(); activeTagId.value = next }
-  function toggleGroup(id: string): void { const next = activeGroupId.value === id ? null : id; showAll(); activeGroupId.value = next }
-  function showGroup(id: string | null): void { showAll(); activeGroupId.value = id }
-  function setModelCover(value: ModelCoverFilter): void { modelCover.value = value; clearSelection() }
+  function showFavorites(): void {
+    showAll()
+    favoritesOnly.value = true
+  }
+  function toggleTag(id: string): void {
+    const next = activeTagId.value === id ? null : id
+    showAll()
+    activeTagId.value = next
+  }
+  function toggleGroup(id: string): void {
+    const next = activeGroupId.value === id ? null : id
+    showAll()
+    activeGroupId.value = next
+  }
+  function showGroup(id: string | null): void {
+    showAll()
+    activeGroupId.value = id
+  }
+  function setModelCover(value: ModelCoverFilter): void {
+    modelCover.value = value
+    clearSelection()
+  }
 
   function toggleSelected(id: string): void {
     const next = new Set(selectedIds.value)
@@ -106,11 +131,19 @@ export const useBrowseStore = defineStore('browse', () => {
     anchorId = id
   }
 
-  function selectAll(): void { selectedIds.value = new Set(visibleAssets.value.map((asset) => asset.id)) }
-  function clearSelection(): void { selectedIds.value = new Set() }
+  function selectAll(): void {
+    selectedIds.value = new Set(visibleAssets.value.map((asset) => asset.id))
+  }
+  function clearSelection(): void {
+    selectedIds.value = new Set()
+  }
 
-  function togglePainting(tagId: string): void { paintingTagId.value = paintingTagId.value === tagId ? null : tagId }
-  function stopPainting(): void { paintingTagId.value = null }
+  function togglePainting(tagId: string): void {
+    paintingTagId.value = paintingTagId.value === tagId ? null : tagId
+  }
+  function stopPainting(): void {
+    paintingTagId.value = null
+  }
 
   return {
     kind,

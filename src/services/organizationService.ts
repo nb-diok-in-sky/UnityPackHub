@@ -5,7 +5,8 @@ import { assetRepository, groupRepository, tagRepository } from '../data/reposit
 export const assetRecords = {
   getAll: (): Promise<Asset[]> => assetRepository.getAll(),
   update: (id: string, patch: Partial<Asset>): Promise<void> => assetRepository.update(id, patch),
-  updateMany: (updates: Array<{ id: string; patch: Partial<Asset> }>): Promise<void> => assetRepository.updateMany(updates),
+  updateMany: (updates: Array<{ id: string; patch: Partial<Asset> }>): Promise<void> =>
+    assetRepository.updateMany(updates),
 }
 
 export const tagRecords = {
@@ -16,7 +17,9 @@ export const tagRecords = {
   async delete(tagId: string): Promise<string[]> {
     await tagRepository.delete(tagId)
     const tagged = await assetRepository.withTag(tagId)
-    await assetRepository.updateMany(tagged.map((asset) => ({ id: asset.id, patch: { tagIds: asset.tagIds.filter((id) => id !== tagId) } })))
+    await assetRepository.updateMany(
+      tagged.map((asset) => ({ id: asset.id, patch: { tagIds: asset.tagIds.filter((id) => id !== tagId) } })),
+    )
     return tagged.map((asset) => asset.id)
   },
 }

@@ -23,7 +23,9 @@ async function exportTemplate(): Promise<void> {
   <div class="text-caption text-grey-7 q-mb-sm">{{ t.shaderAdaptersHint }}</div>
   <q-input
     :model-value="settingsStore.settings.shaderAdapters.rulesPath"
-    dense outlined readonly
+    dense
+    outlined
+    readonly
     :placeholder="t.shaderAdaptersAutomatic"
     class="q-mb-sm"
   />
@@ -32,9 +34,11 @@ async function exportTemplate(): Promise<void> {
     <q-btn outline dense icon="download" color="primary" :label="t.exportAiTemplate" @click="exportTemplate" />
     <q-btn
       v-if="settingsStore.settings.shaderAdapters.rulesPath"
-      flat dense color="grey" :label="t.clearClassificationTable"
+      flat
+      dense
+      color="grey"
+      :label="t.clearClassificationTable"
       @click="settingsStore.setShaderAdapterRulesPath('')"
     />
   </div>
 </template>
-
