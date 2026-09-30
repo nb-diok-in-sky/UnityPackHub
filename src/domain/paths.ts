@@ -2,6 +2,18 @@ export function normalizePath(path: string): string {
   return path.replace(/\\/g, '/')
 }
 
+/** Joins with the separator the base path already uses (backslash for Windows paths). */
+export function joinPath(base: string, ...parts: string[]): string {
+  const separator = base.includes('\\') || !base.includes('/') ? '\\' : '/'
+  return [base.replace(/[\\/]+$/, ''), ...parts].join(separator)
+}
+
+/** Folder containing a file, or '' for a bare file name. */
+export function parentDirectory(path: string): string {
+  const index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  return index > 0 ? path.slice(0, index) : ''
+}
+
 export function fileName(path: string, fallback = ''): string {
   return normalizePath(path).split('/').pop() || fallback
 }

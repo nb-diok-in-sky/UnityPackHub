@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 import { useAssetStore } from '../stores/assetStore'
 import { useBrowseStore } from '../stores/browseStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import { useI18n } from '../i18n'
 import { formatBytes } from '../utils/formatBytes'
 
 const assetStore = useAssetStore()
 const browse = useBrowseStore()
-const { t } = useI18n()
+const library = useLibraryStore()
+const { t, tr } = useI18n()
 
 const totalSizeDisplay = computed(() => formatBytes(browse.totalSize))
 </script>
@@ -27,6 +29,16 @@ const totalSizeDisplay = computed(() => formatBytes(browse.totalSize))
       <span class="statusbar__dot" />
       <span>{{ t.modelCoverNotNeeded }} {{ browse.statistics['not-needed'] }}</span>
     </template>
+    <button
+      v-if="browse.hiddenCount > 0"
+      class="statusbar__hidden"
+      :title="t.hiddenAssetsHint"
+      :disabled="library.isScanning"
+      @click="library.scan"
+    >
+      <q-icon name="visibility_off" size="12px" />
+      {{ tr('hiddenAssets', { count: browse.hiddenCount }) }}
+    </button>
   </div>
 </template>
 
@@ -43,6 +55,20 @@ const totalSizeDisplay = computed(() => formatBytes(browse.totalSize))
   color: $color-secondary;
   background: $color-surface;
   border-top: 1px solid $color-border;
+}
+
+.statusbar__hidden {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $color-secondary;
+  font-size: inherit;
+  cursor: pointer;
+  &:hover { color: $apple-blue; }
 }
 
 .statusbar__dot {

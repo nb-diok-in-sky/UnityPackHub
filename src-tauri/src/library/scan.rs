@@ -29,6 +29,15 @@ pub struct ScanResult {
     pub scanned_directories: Vec<String>,
 }
 
+/// Scan progress, reported while walking the folders.
+#[derive(Debug, Serialize, Clone, Copy, Default)]
+pub struct ScanProgress {
+    /// Files and folders looked at so far.
+    pub visited: usize,
+    /// Packages and models found so far.
+    pub found: usize,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct RelatedFile {
     #[serde(rename = "fileName")]
@@ -41,13 +50,23 @@ pub struct RelatedFile {
     pub file_type: String,
 }
 
-pub fn scan_directories(directories: Vec<String>) -> Result<ScanResult, String> {
+/// Walks the folders; `on_progress` is called for every visited entry and decides itself
+/// how often to report (see `library::scan_directories`).
+pub fn scan_directories(directories: Vec<String>, mut on_progress: impl FnMut(ScanProgress)) -> Result<ScanResult, String> {
     let mut result = ScanResult { files: Vec::new(), scanned_directories: Vec::new() };
+    let mut progress = ScanProgress::default();
     for directory in directories {
         if std::fs::read_dir(&directory).is_err() { continue; }
         let walker = WalkDir::new(&directory).follow_links(true).into_iter()
             .filter_entry(|entry| !is_unity_internal_dir(entry));
-        result.files.extend(walker.filter_map(Result::ok).filter_map(|entry| scanned_file(&entry)));
+        for entry in walker.filter_map(Result::ok) {
+            progress.visited += 1;
+            if let Some(file) = scanned_file(&entry) {
+                result.files.push(file);
+                progress.found += 1;
+            }
+            on_progress(progress);
+        }
         result.scanned_directories.push(directory);
     }
     Ok(result)
@@ -141,7 +160,9 @@ mod tests {
         fs::create_dir_all(root.join("Library")).unwrap();
         fs::write(root.join("Project/Library/cached.fbx"), "x").unwrap();
         fs::write(root.join("Library/tree.fbx"), "x").unwrap();
-        let result = scan_directories(vec![root.to_string_lossy().into(), root.join("missing").to_string_lossy().into()]).unwrap();
+        let mut last = super::ScanProgress::default();
+        let result = scan_directories(vec![root.to_string_lossy().into(), root.join("missing").to_string_lossy().into()], |progress| last = progress).unwrap();
+        assert_eq!(last.found, 1);
         let names: Vec<_> = result.files.iter().map(|file| file.file_name.as_str()).collect();
         assert_eq!(names, vec!["tree.fbx"]);
         assert_eq!(result.scanned_directories, vec![root.to_string_lossy().to_string()]);

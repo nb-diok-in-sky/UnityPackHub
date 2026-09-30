@@ -86,4 +86,9 @@ export const unityService = {
   },
 
   discoverEditors: (): Promise<string[]> => backend.discoverUnityEditors(),
+
+  bridgeStatus: (projectPath: string) => backend.unityBridgeStatus(projectPath),
+
+  /** Returns true when scripts changed, i.e. Unity has to recompile before the bridge answers. */
+  installBridge: (projectPath: string): Promise<boolean> => backend.installUnityBridge(projectPath),
 }

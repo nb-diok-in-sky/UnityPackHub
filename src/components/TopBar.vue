@@ -7,6 +7,7 @@ import ModelFilterMenus from './topbar/ModelFilterMenus.vue'
 import ModelPreviewBatchDialog from './topbar/ModelPreviewBatchDialog.vue'
 import TopBarSearch from './topbar/TopBarSearch.vue'
 import ViewOptions from './topbar/ViewOptions.vue'
+import UnityConnection from './topbar/UnityConnection.vue'
 
 const emit = defineEmits<{ 'open-settings': [] }>()
 const browse = useBrowseStore()
@@ -20,6 +21,7 @@ const { t } = useI18n()
     <div class="topbar__title" data-tauri-drag-region>{{ t.appTitle }}</div>
     <div class="topbar__search"><TopBarSearch /></div>
     <div class="topbar__actions">
+      <UnityConnection />
       <span v-if="preview.job.progress && preview.job.running" class="topbar__progress">
         {{ preview.job.progress.completed }}/{{ preview.job.progress.total }}
       </span>

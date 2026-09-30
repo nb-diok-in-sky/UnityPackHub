@@ -1,6 +1,6 @@
 // Tauri plugins (dialogs, files, shell, http, drag & drop). Only the platform layer may import them.
 import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog'
-import { BaseDirectory, exists, mkdir, readFile, readTextFile, stat, writeTextFile } from '@tauri-apps/plugin-fs'
+import { BaseDirectory, exists, mkdir, readFile, readTextFile, stat, writeFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { open as openInShell } from '@tauri-apps/plugin-shell'
 import { fetch as httpFetch } from '@tauri-apps/plugin-http'
 
@@ -23,6 +23,12 @@ export async function pickSavePath(defaultPath: string, filters: FileFilter[]): 
 export function readBinaryFile(path: string): Promise<Uint8Array> { return readFile(path) }
 
 export function writeTextFileAt(path: string, content: string): Promise<void> { return writeTextFile(path, content) }
+
+export function readTextFileAt(path: string): Promise<string> { return readTextFile(path) }
+
+export function writeBinaryFileAt(path: string, content: Uint8Array): Promise<void> { return writeFile(path, content) }
+
+export function createDirectory(path: string): Promise<void> { return mkdir(path, { recursive: true }) }
 
 export async function fileExists(path: string): Promise<boolean> {
   try { return await exists(path) } catch { return false }

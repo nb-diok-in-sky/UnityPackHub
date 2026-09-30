@@ -65,6 +65,14 @@ export const useBrowseStore = defineStore('browse', () => {
     activeGroupId.value = null
   }
 
+  /** Clears every filter, including search and the cover status filter. */
+  function resetFilters(): void {
+    showAll()
+    search.value = ''
+    modelCover.value = 'all'
+    project.setFilter('all')
+  }
+
   function setKind(value: AssetKind): void {
     kind.value = value
     showAll()
@@ -115,6 +123,10 @@ export const useBrowseStore = defineStore('browse', () => {
     paintingTagId,
     libraryAssets,
     statistics,
+    /** Assets kept in the database but hidden (folder disabled or unreachable). */
+    hiddenCount: computed(() => assets.assets.length - libraryAssets.value.length),
+    /** The selected group, when it is one the user manages (not a classification). */
+    activeManualGroup: computed(() => groups.manualGroups.find((group) => group.id === activeGroupId.value) ?? null),
     kindAssets,
     visibleAssets,
     hasSelection: computed(() => selectedIds.value.size > 0),
@@ -122,6 +134,7 @@ export const useBrowseStore = defineStore('browse', () => {
     totalSize: computed(() => kindAssets.value.reduce((sum, asset) => sum + asset.fileSize, 0)),
     setKind,
     showAll,
+    resetFilters,
     showFavorites,
     toggleTag,
     toggleGroup,

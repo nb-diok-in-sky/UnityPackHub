@@ -7,6 +7,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUnityProjectStore } from '../stores/unityProjectStore'
 import { useI18n } from '../i18n'
+import { fileService } from '../services/fileService'
 import AssetCard from './AssetCard.vue'
 
 const CARD_GAP = 16
@@ -18,7 +19,12 @@ const browse = useBrowseStore()
 const library = useLibraryStore()
 const settingsStore = useSettingsStore()
 const projectStore = useUnityProjectStore()
-const { t } = useI18n()
+const { t, tr } = useI18n()
+
+async function addDirectory(): Promise<void> {
+  const selected = await fileService.pickDirectory()
+  if (selected) await library.addDirectory(selected)
+}
 const scrollElement = ref<HTMLElement | null>(null)
 const viewportWidth = ref(0)
 const viewportHeight = ref(0)
@@ -81,10 +87,25 @@ onUnmounted(() => resizeObserver?.disconnect())
     <div v-if="library.isScanning" class="asset-grid__state">
       <q-spinner-dots color="primary" size="40px" />
       <span>{{ t.scanning }}</span>
+      <span v-if="library.scanProgress" class="asset-grid__hint">
+        {{ tr('scanProgress', { visited: library.scanProgress.visited, found: library.scanProgress.found }) }}
+      </span>
+    </div>
+    <div v-else-if="settingsStore.settings.scanDirectories.length === 0" class="asset-grid__state">
+      <q-icon name="create_new_folder" size="64px" color="grey-4" />
+      <p>{{ t.welcomeTitle }}</p>
+      <span class="asset-grid__hint">{{ t.welcomeHint }}</span>
+      <q-btn unelevated no-caps color="primary" icon="add" :label="t.addDirectory" @click="addDirectory" />
+    </div>
+    <div v-else-if="browse.kindAssets.length === 0" class="asset-grid__state">
+      <q-icon name="inventory_2" size="64px" color="grey-4" />
+      <p>{{ browse.kind === 'model' ? t.noModelsFound : t.noPackagesFound }}</p>
+      <q-btn outline no-caps color="primary" icon="refresh" :label="t.rescan" @click="library.scan" />
     </div>
     <div v-else-if="browse.visibleAssets.length === 0" class="asset-grid__state">
-      <q-icon name="inventory_2" size="64px" color="grey-4" />
-      <p>{{ browse.kindAssets.length === 0 ? t.noAssetsYet : t.noAssetsMatch }}</p>
+      <q-icon name="filter_alt_off" size="64px" color="grey-4" />
+      <p>{{ t.noAssetsMatch }}</p>
+      <q-btn outline no-caps color="primary" icon="clear_all" :label="t.clearFilters" @click="browse.resetFilters" />
     </div>
     <div v-else class="asset-grid__virtual">
       <div :style="{ height: `${topSpacer}px` }" />
@@ -114,6 +135,7 @@ onUnmounted(() => resizeObserver?.disconnect())
 
   &__virtual { min-height: 100%; }
   &__container { display: grid; gap: $spacing-card-gap; align-items: start; }
-  &__state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; color: $color-secondary; font-size: 15px; }
+  &__state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; color: $color-secondary; font-size: 15px; p { margin: 0; } }
+  &__hint { font-size: 12px; opacity: 0.8; }
 }
 </style>

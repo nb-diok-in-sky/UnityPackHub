@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import type { ScanProgress } from '../platform/backend'
 import { libraryService, type ScanWarning } from '../services/libraryService'
 import { classificationService } from '../services/classificationService'
 import { useI18n } from '../i18n'
@@ -11,6 +12,7 @@ import { useSettingsStore } from './settingsStore'
 /** Scan folders, scanning, and the optional model classification table. */
 export const useLibraryStore = defineStore('library', () => {
   const isScanning = ref(false)
+  const scanProgress = ref<ScanProgress | null>(null)
   const settings = useSettingsStore()
   const { tr } = useI18n()
 
@@ -29,9 +31,11 @@ export const useLibraryStore = defineStore('library', () => {
   async function scan(): Promise<void> {
     if (isScanning.value) return
     isScanning.value = true
+    scanProgress.value = null
     try {
       const { classification } = settings.settings
-      const { warnings } = await libraryService.scan(settings.settings.scanDirectories, classification.enabled ? classification.jsonPath : '')
+      const { warnings } = await libraryService.scan(settings.settings.scanDirectories, classification.enabled ? classification.jsonPath : '',
+        (progress) => { scanProgress.value = progress })
       useAssetStore().clearHistory()
       await reload()
       for (const warning of warnings) notify.warning(describe(warning))
@@ -75,5 +79,5 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
-  return { isScanning, scan, addDirectory, removeDirectory, toggleDirectory, setClassificationTable }
+  return { isScanning, scanProgress, scan, addDirectory, removeDirectory, toggleDirectory, setClassificationTable }
 })

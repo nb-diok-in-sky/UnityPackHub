@@ -7,8 +7,7 @@ import { useAssetStore } from "../stores/assetStore";
 import { useBrowseStore } from "../stores/browseStore";
 import { useGroupStore } from "../stores/groupStore";
 import { useTagStore } from "../stores/tagStore";
-import { useI18n } from "../i18n";
-import { errorMessage, notify } from "../ui/feedback";
+import { useAssetActions } from "../composables/useAssetActions";
 import AssetCardCover from "./asset/AssetCardCover.vue";
 import AssetCardMenu from "./asset/AssetCardMenu.vue";
 import AssetCardBody from "./asset/AssetCardBody.vue";
@@ -18,7 +17,7 @@ const assets = useAssetStore();
 const browse = useBrowseStore();
 const tags = useTagStore();
 const groups = useGroupStore();
-const { tr } = useI18n();
+const actions = useAssetActions();
 const selected = computed(() => browse.selectedIds.has(props.asset.id));
 const assetTags = computed(() =>
   props.asset.tagIds
@@ -32,19 +31,19 @@ const manualGroups = computed(() =>
       group.assetKind === props.asset.assetKind,
   ),
 );
+const activeGroupName = computed(() =>
+  browse.activeManualGroup?.assetIds.includes(props.asset.id)
+    ? browse.activeManualGroup.name
+    : null,
+);
 function click(event: MouseEvent) {
   if (browse.paintingTagId) void assets.edit([props.asset.id], addTag(browse.paintingTagId));
   else if (event.shiftKey) browse.selectRange(props.asset.id);
   else if (event.ctrlKey || event.metaKey) browse.toggleSelected(props.asset.id);
   else emit("open", props.asset);
 }
-async function importToUnity() {
-  if (browse.paintingTagId) return;
-  try {
-    await assets.importToUnity(props.asset);
-  } catch (error) {
-    notify.error(tr("importFailed", { reason: errorMessage(error) }));
-  }
+function importToUnity() {
+  if (!browse.paintingTagId) void actions.importToUnity(props.asset);
 }
 function toggleFavorite(event?: MouseEvent) {
   event?.stopPropagation();
@@ -62,14 +61,21 @@ function toggleFavorite(event?: MouseEvent) {
     @click="click"
     @dblclick.prevent="importToUnity"
   >
-    <AssetCardCover :asset="asset" @favorite="toggleFavorite" /><AssetCardMenu
+    <AssetCardCover :asset="asset" @favorite="toggleFavorite" />
+    <AssetCardMenu
       :asset="asset"
       :groups="manualGroups"
+      :tags="tags.tags"
+      :active-group-name="activeGroupName"
       @open="importToUnity"
       @reveal="fileService.reveal(asset.filePath)"
       @favorite="toggleFavorite()"
       @group="groups.addAssets($event, [asset.id])"
-    /><AssetCardBody :asset="asset" :tags="assetTags" />
+      @tag="actions.toggleTag(asset, $event)"
+      @remove-from-group="actions.removeFromActiveGroup([asset.id])"
+      @remove="actions.removeFromLibrary([asset.id])"
+    />
+    <AssetCardBody :asset="asset" :tags="assetTags" />
   </article>
 </template>
 <style scoped lang="scss">

@@ -77,3 +77,43 @@ export const showcaseCacheRepository = {
     await db.showcaseCache.bulkDelete(keys.filter((key) => key.startsWith(prefix)))
   },
 }
+
+/** Everything in IndexedDB except caches, for backups. */
+export interface LibrarySnapshot {
+  assets: Asset[]
+  tags: Tag[]
+  groups: AssetGroup[]
+  unityAssetLinks: UnityAssetLink[]
+  assetStoreLinks: AssetStoreLinkRecord[]
+}
+
+export const librarySnapshot = {
+  async read(): Promise<LibrarySnapshot> {
+    const [assets, tags, groups, unityAssetLinks, assetStoreLinks] = await Promise.all([
+      db.assets.toArray(), db.tags.toArray(), db.groups.toArray(), db.unityAssetLinks.toArray(), db.assetStoreLinks.toArray(),
+    ])
+    return { assets, tags, groups, unityAssetLinks, assetStoreLinks }
+  },
+
+  /** Calls `visit` for every stored cover, one at a time to keep memory flat. */
+  async eachCover(visit: (id: string, image: Blob) => Promise<void>): Promise<void> {
+    const ids = (await db.thumbnails.toCollection().primaryKeys()) as string[]
+    for (const id of ids) {
+      const record = await db.thumbnails.get(id)
+      if (record) await visit(id, record.blob)
+    }
+  },
+
+  /** Replaces the whole library in one transaction; the showcase cache is dropped too. */
+  async replace(snapshot: LibrarySnapshot, covers: Array<{ id: string; blob: Blob }>): Promise<void> {
+    await db.transaction('rw', [db.assets, db.tags, db.groups, db.unityAssetLinks, db.assetStoreLinks, db.thumbnails, db.showcaseCache], async () => {
+      await Promise.all([db.assets.clear(), db.tags.clear(), db.groups.clear(), db.unityAssetLinks.clear(), db.assetStoreLinks.clear(), db.thumbnails.clear(), db.showcaseCache.clear()])
+      await db.assets.bulkPut(snapshot.assets)
+      await db.tags.bulkPut(snapshot.tags)
+      await db.groups.bulkPut(snapshot.groups)
+      await db.unityAssetLinks.bulkPut(snapshot.unityAssetLinks)
+      await db.assetStoreLinks.bulkPut(snapshot.assetStoreLinks)
+      await db.thumbnails.bulkPut(covers)
+    })
+  },
+}

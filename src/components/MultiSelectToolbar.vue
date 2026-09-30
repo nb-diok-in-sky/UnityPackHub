@@ -14,9 +14,11 @@ const {
   favorite,
   unfavorite,
   deleteSelected,
+  activeGroupName,
+  removeFromGroup,
   undo,
 } = useBatchAssetActions()
-const { t } = useI18n()
+const { t, tr } = useI18n()
 </script>
 
 <template>
@@ -40,12 +42,13 @@ const { t } = useI18n()
       </div>
 
       <div class="multi-toolbar__actions">
-        <q-btn flat dense round icon="label" size="sm" class="multi-toolbar__btn" title="Add Tag">
+        <q-btn flat dense round icon="label" size="sm" class="multi-toolbar__btn" :title="t.addTag">
           <BatchTagMenu @add="addTag" @remove="removeTag" />
         </q-btn>
         <q-btn flat dense round icon="star" size="sm" class="multi-toolbar__btn" :title="t.favorite" @click="favorite" />
         <q-btn flat dense round icon="star_border" size="sm" class="multi-toolbar__btn" :title="t.unfavorite" @click="unfavorite" />
-        <q-btn flat dense round icon="delete_outline" size="sm" class="multi-toolbar__btn multi-toolbar__btn--danger" :title="t.delete" @click="deleteDialogOpen = true" />
+        <q-btn v-if="activeGroupName" flat dense round icon="folder_off" size="sm" class="multi-toolbar__btn" :title="tr('removeFromNamedGroup', { group: activeGroupName })" @click="removeFromGroup" />
+        <q-btn flat dense round icon="delete_outline" size="sm" class="multi-toolbar__btn multi-toolbar__btn--danger" :title="t.removeFromLibrary" @click="deleteDialogOpen = true" />
         <div class="multi-toolbar__divider" />
         <q-btn flat dense round icon="undo" size="sm" class="multi-toolbar__btn" :disable="!canUndo" :title="`${t.undo} (Ctrl+Z)`" @click="undo" />
         <q-btn flat dense round icon="close" size="sm" class="multi-toolbar__btn" :title="t.cancel" @click="browse.clearSelection" />

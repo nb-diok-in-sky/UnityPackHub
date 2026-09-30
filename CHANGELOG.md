@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- 顶栏显示当前检测到的 Unity 项目和 bridge 状态，可一键连接或更新 bridge（窗口获得焦点和每 20 秒自动刷新）
+- 扫描时显示进度（已检查文件数、已找到资产数）
+- 状态栏显示被隐藏的资产数量，点击即重新扫描
+- 首次使用时空状态直接提供"添加扫描目录"；没有资产时提供"重新扫描"，筛选无结果时提供"清除筛选"
+- 卡片右键菜单：勾选式打标签、从当前分组移除、从资产库移除；多选工具栏增加"移出分组"
+- 移除资产、移出分组后的提示中直接带"撤销"按钮；双击导入后提示已交给哪个 Unity 项目
+- 设置 > 数据备份：导出资产、标签、分组、备注、封面和设置到文件夹（封面为独立图片文件），可从备份恢复
+
 ## [0.5.0] - 2026-09-27
 
 ### Fixed

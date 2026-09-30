@@ -45,5 +45,13 @@ export const useGroupStore = defineStore('groups', () => {
     if (added.length > 0) await save({ ...group, assetIds: [...group.assetIds, ...added] })
   }
 
-  return { groups, manualGroups, classificationGroups, load, create, edit, remove, addAssets }
+  async function removeAssets(groupId: string, assetIds: string[]): Promise<void> {
+    const group = groups.value.find((current) => current.id === groupId)
+    if (!group) return
+    const removed = new Set(assetIds)
+    const remaining = group.assetIds.filter((id) => !removed.has(id))
+    if (remaining.length !== group.assetIds.length) await save({ ...group, assetIds: remaining })
+  }
+
+  return { groups, manualGroups, classificationGroups, load, create, edit, remove, addAssets, removeAssets }
 })

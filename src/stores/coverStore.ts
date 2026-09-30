@@ -47,5 +47,11 @@ export const useCoverStore = defineStore('covers', () => {
     urls.delete(assetId)
   }
 
-  return { url: (assetId: string) => urls.get(assetId), ensure, save, remove }
+  /** Forgets every loaded cover, e.g. after the library was replaced by a backup. */
+  function clear(): void {
+    for (const url of urls.values()) URL.revokeObjectURL(url)
+    urls.clear()
+  }
+
+  return { url: (assetId: string) => urls.get(assetId), ensure, save, remove, clear }
 })

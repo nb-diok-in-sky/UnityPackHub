@@ -4,7 +4,7 @@ import type { Asset } from '../types/asset'
 import type { ScanDirectory } from '../types/settings'
 import { planLibrarySync } from '../domain/librarySync'
 import { isInsideDirectory } from '../domain/paths'
-import { backend } from '../platform/backend'
+import { backend, onScanProgress, type ScanProgress } from '../platform/backend'
 import { assetRepository, assetStoreLinkRepository, coverRepository, groupRepository } from '../data/repositories'
 import { classificationService } from './classificationService'
 
@@ -20,9 +20,10 @@ export interface ScanOutcome {
 export interface GroupMembership { groupId: string; assetId: string }
 
 export const libraryService = {
-  async scan(directories: ScanDirectory[], classificationJsonPath: string): Promise<ScanOutcome> {
+  async scan(directories: ScanDirectory[], classificationJsonPath: string, onProgress?: (progress: ScanProgress) => void): Promise<ScanOutcome> {
     const enabled = directories.filter((directory) => directory.enabled).map((directory) => directory.path)
-    const result = await backend.scanDirectories(enabled)
+    const stopListening = onProgress ? await onScanProgress(onProgress) : undefined
+    const result = await backend.scanDirectories(enabled).finally(() => stopListening?.())
     const warnings: ScanWarning[] = []
     const unreachable = enabled.filter((directory) => !result.scannedDirectories.includes(directory))
     if (unreachable.length > 0) warnings.push({ kind: 'unreachable', directories: unreachable })

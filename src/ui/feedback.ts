@@ -6,6 +6,12 @@ export const notify = {
   info: (message: string) => Notify.create({ type: 'info', message }),
   warning: (message: string) => Notify.create({ type: 'warning', message, timeout: 6000 }),
   error: (message: string) => Notify.create({ type: 'negative', message, timeout: 6000 }),
+  /** Confirmation with one action button, e.g. "Undo" after removing assets. */
+  withAction: (message: string, actionLabel: string, action: () => void) => Notify.create({
+    message,
+    timeout: 6000,
+    actions: [{ label: actionLabel, color: 'yellow', handler: action }],
+  }),
 }
 
 export function confirm(title: string, message: string): Promise<boolean> {

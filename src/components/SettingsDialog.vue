@@ -5,6 +5,7 @@ import LibrarySettings from './settings/LibrarySettings.vue'
 import QuickLinkSettings from './settings/QuickLinkSettings.vue'
 import ShaderAdapterSettings from './settings/ShaderAdapterSettings.vue'
 import UnityEditorSettings from './settings/UnityEditorSettings.vue'
+import DataSettings from './settings/DataSettings.vue'
 
 defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -29,6 +30,8 @@ const { t } = useI18n()
         <UnityEditorSettings />
         <q-separator class="q-my-lg" />
         <QuickLinkSettings />
+        <q-separator class="q-my-lg" />
+        <DataSettings />
       </q-card-section>
     </q-card>
   </q-dialog>

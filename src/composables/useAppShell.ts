@@ -4,6 +4,7 @@ import { useBrowseStore } from '../stores/browseStore'
 import { useGroupStore } from '../stores/groupStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useTagStore } from '../stores/tagStore'
+import { useUnityConnectionStore } from '../stores/unityConnectionStore'
 
 function isTextInput(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null
@@ -40,10 +41,16 @@ export function useAppShell(closeDetail: () => boolean) {
     }
   }
 
+  const unity = useUnityConnectionStore()
+
   onMounted(async () => {
     window.addEventListener('keydown', handleKeydown)
+    unity.startMonitoring()
     await useSettingsStore().load()
     await Promise.all([useTagStore().load(), useGroupStore().load(), assets.load()])
   })
-  onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown)
+    unity.stopMonitoring()
+  })
 }

@@ -1,5 +1,6 @@
 // Typed wrappers for every Rust command (src-tauri/src/lib.rs). The only file that calls `invoke`.
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 export interface ScannedFile {
   name: string
@@ -13,6 +14,13 @@ export interface ScanResult {
   files: ScannedFile[]
   /** Only these directories were readable; assets elsewhere must not be treated as deleted. */
   scannedDirectories: string[]
+}
+
+export interface ScanProgress {
+  /** Files and folders looked at so far. */
+  visited: number
+  /** Packages and models found so far. */
+  found: number
 }
 
 export interface RelatedFile {
@@ -96,6 +104,11 @@ export type BridgeStatus = 'ready' | 'outdated' | 'offline'
 
 export interface ModelPreviewRequest { assetId: string; sourcePath: string }
 export interface ModelPreviewResult { assetId: string; imagePath: string; success: boolean; error: string }
+
+/** Progress events sent by `scan_directories` while it walks the folders. */
+export function onScanProgress(handler: (progress: ScanProgress) => void): Promise<() => void> {
+  return listen<ScanProgress>('library://scan-progress', (event) => handler(event.payload))
+}
 
 export const backend = {
   // library
