@@ -91,6 +91,7 @@ export const zhCN = {
   noPreviews: '暂无 Unity 渲染预览',
   useAsPreview: '设为封面',
   assetShowcase: '资产橱窗',
+  packageFileMissing: '找不到资源包文件，可能已被移动、删除，或所在磁盘未连接。',
   searchInPackage: '搜索包内资产...',
   extractAsset: '提取资产',
   extracting: '正在提取...',

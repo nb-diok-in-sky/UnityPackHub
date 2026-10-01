@@ -65,6 +65,7 @@ defineExpose({ reset: showcase.reset })
 
     <SectionState :loading="showcase.loading.value" :loading-text="t.loadingContents" />
 
+    <div v-if="showcase.open.value && showcase.missing.value" class="showcase__error">{{ t.packageFileMissing }}</div>
     <div v-if="showcase.open.value && showcase.error.value" class="showcase__error">{{ showcase.error.value }}</div>
     <template v-if="showcase.open.value && showcase.listing.value">
       <FilterChipBar

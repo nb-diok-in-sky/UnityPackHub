@@ -103,6 +103,13 @@ export const showcaseCacheRepository = {
     const keys = (await db.showcaseCache.toCollection().primaryKeys()) as string[]
     await db.showcaseCache.bulkDelete(keys.filter((key) => key.startsWith(prefix)))
   },
+  /** Deletes every entry whose key does not end with `suffix`; returns how many were removed. */
+  async deleteUnlessSuffix(suffix: string): Promise<number> {
+    const keys = (await db.showcaseCache.toCollection().primaryKeys()) as string[]
+    const stale = keys.filter((key) => !key.endsWith(suffix))
+    await db.showcaseCache.bulkDelete(stale)
+    return stale.length
+  },
 }
 
 /** Everything in IndexedDB except caches, for backups. */

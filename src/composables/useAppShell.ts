@@ -1,4 +1,5 @@
 import { onMounted, onUnmounted } from 'vue'
+import { packageService } from '../services/packageService'
 import { useAssetStore } from '../stores/assetStore'
 import { useBrowseStore } from '../stores/browseStore'
 import { useGroupStore } from '../stores/groupStore'
@@ -48,6 +49,7 @@ export function useAppShell(closeDetail: () => boolean) {
     unity.startMonitoring()
     await useSettingsStore().load()
     await Promise.all([useTagStore().load(), useGroupStore().load(), assets.load()])
+    void packageService.pruneStaleListings().catch(() => undefined)
   })
   onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown)

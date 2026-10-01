@@ -1,7 +1,7 @@
 import { computed, onUnmounted, ref } from 'vue'
 import type { Asset } from '../types/asset'
 import type { PackageAssetEntry, PackageAssetList } from '../platform/backend'
-import { packageService } from '../services/packageService'
+import { PackageFileMissingError, packageService } from '../services/packageService'
 import { errorMessage } from '../ui/feedback'
 
 export const PACKAGE_SHOWCASE_TYPES = ['Prefab', 'Texture', 'Script'] as const
@@ -15,6 +15,8 @@ export function usePackageShowcase(asset: () => Asset) {
   const listing = ref<PackageAssetList | null>(null)
   const loading = ref(false)
   const error = ref('')
+  /** The package file itself is gone; shown as a hint instead of an error. */
+  const missing = ref(false)
   const open = ref(false)
   const filter = ref<'All' | PackageShowcaseType>('All')
   const folder = ref('')
@@ -72,6 +74,7 @@ export function usePackageShowcase(asset: () => Asset) {
     const current = ++generation
     loading.value = true
     error.value = ''
+    missing.value = false
     try {
       const path = asset().filePath
       const parsed = await packageService.listAssets(path, { refresh })
@@ -84,7 +87,9 @@ export function usePackageShowcase(asset: () => Asset) {
       renderedFiles.value = new Set(previews.files)
       await watchRenders(path, current)
     } catch (reason) {
-      if (current === generation) error.value = errorMessage(reason)
+      if (current !== generation) return
+      if (reason instanceof PackageFileMissingError) missing.value = true
+      else error.value = errorMessage(reason)
     } finally {
       if (current === generation) loading.value = false
     }
@@ -106,6 +111,7 @@ export function usePackageShowcase(asset: () => Asset) {
     listing.value = null
     loading.value = false
     error.value = ''
+    missing.value = false
     open.value = false
     filter.value = 'All'
     folder.value = ''
@@ -124,6 +130,7 @@ export function usePackageShowcase(asset: () => Asset) {
     listing,
     loading,
     error,
+    missing,
     open,
     filter,
     entries,

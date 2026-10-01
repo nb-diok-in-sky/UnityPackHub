@@ -93,6 +93,7 @@ export const enUS: Record<keyof typeof zhCN, string> = {
   noPreviews: 'No Unity rendered previews yet',
   useAsPreview: 'Use as cover',
   assetShowcase: 'Asset Showcase',
+  packageFileMissing: 'Package file not found. It may have been moved or deleted, or its drive is not connected.',
   searchInPackage: 'Search assets in package...',
   extractAsset: 'Extract Asset',
   extracting: 'Extracting...',

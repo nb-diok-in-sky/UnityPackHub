@@ -16,11 +16,21 @@ const LISTING_CACHE_VERSION = 7
 
 const cacheKey = (packagePath: string) => `${packagePath}::v${LISTING_CACHE_VERSION}`
 
+/** The package file is not on disk (moved, deleted, or its drive is offline). */
+export class PackageFileMissingError extends Error {
+  constructor(readonly packagePath: string) {
+    super(`Package file not found: ${packagePath}`)
+  }
+}
+
 export const packageService = {
+  /** Drops cached listings written by older versions; they can be several MB each. */
+  pruneStaleListings: (): Promise<number> => showcaseCacheRepository.deleteUnlessSuffix(cacheKey('')),
   /** Parses the package once; later calls reuse the cached listing until the file size changes. */
   async listAssets(packagePath: string, options: { refresh?: boolean } = {}): Promise<PackageAssetList> {
     if (options.refresh) await showcaseCacheRepository.deleteByPrefix(packagePath)
     const size = await fileSize(packagePath)
+    if (size === null) throw new PackageFileMissingError(packagePath)
     if (size) {
       const cached = await showcaseCacheRepository.get<PackageAssetList>(cacheKey(packagePath), size)
       if (cached) return cached

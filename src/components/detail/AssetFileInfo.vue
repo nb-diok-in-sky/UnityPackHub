@@ -59,8 +59,9 @@ const rows = computed(() => [
   color: $color-secondary;
 }
 .value {
+  min-width: 0;
   color: $color-text;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .path {
   font-size: 11px;

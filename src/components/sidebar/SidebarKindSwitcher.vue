@@ -35,7 +35,7 @@ defineEmits<{ select: [kind: AssetKind] }>()
       @click="$emit('select', item.kind)"
     >
       <q-icon :name="item.icon" size="17px" />
-      <span>{{ item.label }}</span>
+      <span class="label">{{ item.label }}</span>
       <span class="count">{{ item.count }}</span>
     </button>
   </div>
@@ -52,9 +52,10 @@ defineEmits<{ select: [kind: AssetKind] }>()
 .kind-button {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 8px;
+  white-space: nowrap;
   border: 1px solid $color-border;
   background: var(--hover-overlay);
   border-radius: 8px;
@@ -70,6 +71,12 @@ defineEmits<{ select: [kind: AssetKind] }>()
   &--active {
     background: var(--accent-soft);
   }
+}
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .count {
   margin-left: auto;

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-10-01
+
+### Fixed
+
+- 资源包文件不存在（被移动、删除或磁盘未连接）时，资产橱窗显示说明文字，不再显示系统原始报错
+- 侧栏「资源包 / 模型」切换按钮在窄侧栏下不再折成两行
+- 详情中的长文件名优先在空格处换行，不再从单词中间断开
+- 启动时清理旧版本留下的资产橱窗解析缓存（每条可达数 MB）
+
 ## [0.6.0] - 2026-09-30
 
 ### Added

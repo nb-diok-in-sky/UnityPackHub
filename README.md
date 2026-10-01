@@ -18,7 +18,7 @@ Unity 离线资产管理工具 —— 不打开 Unity，直接浏览和管理你
 项目里已经放好了打包好的安装程序，clone 下来直接装：
 
 ```
-release/UnityPackHub_0.6.0_x64-setup.exe
+release/UnityPackHub_0.6.1_x64-setup.exe
 ```
 
 双击运行，安装完打开即用。安装包只有 ~5MB。
